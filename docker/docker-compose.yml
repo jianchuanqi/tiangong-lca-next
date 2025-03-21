@@ -9,7 +9,7 @@ services:
       dockerfile: Dockerfile.app
     restart: unless-stopped
     ports:
-      - "8000:8000"
+      - "3000:8000"
     environment:
       - NEXT_PUBLIC_SUPABASE_URL_SELF_HOSTING=${SUPABASE_PUBLIC_URL}
       - NEXT_PUBLIC_SUPABASE_ANON_KEY_SELF_HOSTING=${ANON_KEY}
