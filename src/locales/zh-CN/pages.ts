@@ -1,4 +1,5 @@
 export default {
+  'pages.button.deleteMessage': '您确定要删除此数据吗？',
   'pages.layouts.userLayout.title': '',
   'pages.404.buttonText': '返回首页',
   'pages.404.subTitle': '抱歉，您访问的页面不存在。',
@@ -138,6 +139,11 @@ export default {
   'pages.account.changeEmail': '修改邮箱',
   'pages.account.confirmNewPassword.placeholder': '确认新密码',
   'pages.account.confirmNewEmail.placeholder': '确认新邮箱',
+
+  'pages.account.generateAPIKey': '生成 API Key',
+  'pages.account.apiKey.viewed': '请确保将其保存到安全的位置。此密钥将不会再次显示。',
+  'pages.account.apiKey.generateButton': '生成密钥',
+  'pages.account.apiKey.generated.success': 'API Key 生成成功！',
 
   'pages.login.passwordForgot.tab': '账户',
 

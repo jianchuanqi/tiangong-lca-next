@@ -9,16 +9,20 @@ import {
   updateRoleApi,
 } from '@/services/roles/api';
 import {
-  editTeamMessage,
-  getTeamMembersApi,
-  getTeamMessageApi,
+  FileType,
+  getBase64,
+  getThumbFileUrls,
+  isImage,
+  removeLogoApi,
   uploadLogoApi,
-} from '@/services/teams/api';
+} from '@/services/supabase/storage';
+import { editTeamMessage, getTeamMembersApi, getTeamMessageApi } from '@/services/teams/api';
 import { TeamMemberTable } from '@/services/teams/data';
 import {
   CrownOutlined,
   DeleteOutlined,
   PlusOutlined,
+  QuestionCircleOutlined,
   UserAddOutlined,
   UserOutlined,
 } from '@ant-design/icons';
@@ -43,12 +47,9 @@ import {
   Tooltip,
   Upload,
 } from 'antd';
-import type { UploadFile } from 'antd/es/upload/interface';
 import { useEffect, useRef, useState } from 'react';
 import { v4 } from 'uuid';
 import AddMemberModal from './Components/AddMemberModal';
-
-const LogoBaseUrl = 'https://qgzvkongdjqiiamzbbts.supabase.co/storage/v1/object/public/sys-files/';
 
 const Team = () => {
   const { token } = theme.useToken();
@@ -57,11 +58,18 @@ const Team = () => {
   const [userRole, setUserRole] = useState('');
 
   const formRefEdit = useRef<ProFormInstance>();
-  const [lightLogo, setLightLogo] = useState('');
-  const [darkLogo, setDarkLogo] = useState('');
+
+  const [lightLogo, setLightLogo] = useState<FileType[]>([]);
+  const [lightLogoPreviewUrl, setLightLogoPreviewUrl] = useState('');
+  const [lightLogoError, setLightLogoError] = useState(false);
+  const [beforeLightLogoPath, setBeforeLightLogoPath] = useState<string>('');
+
+  const [darkLogo, setDarkLogo] = useState<FileType[]>([]);
+  const [darkLogoPreviewUrl, setDarkLogoPreviewUrl] = useState('');
+  const [darkLogoError, setDarkLogoError] = useState(false);
+  const [beforeDarkLogoPath, setBeforeDarkLogoPath] = useState<string>('');
+
   const [teamInfoSpinning, setTeamInfoSpinning] = useState(false);
-  const [lightLogoSpinning, setLightLogoSpinning] = useState(false);
-  const [darkLogoSpinning, setDarkLogoSpinning] = useState(false);
 
   const [membersLoading, setMembersLoading] = useState(false);
   const [addModalVisible, setAddModalVisible] = useState(false);
@@ -110,14 +118,44 @@ const Team = () => {
         title: title || [],
         description: description || [],
         rank: data[0]?.rank,
+        is_public: data[0]?.is_public,
       };
 
-      setLightLogo(data[0]?.json?.lightLogo);
-      setDarkLogo(data[0]?.json?.darkLogo);
+      setBeforeLightLogoPath(data[0]?.json?.lightLogo);
+      setBeforeDarkLogoPath(data[0]?.json?.darkLogo);
+
+      getThumbFileUrls([{ '@uri': `${data[0]?.json?.lightLogo}` }]).then((res) => {
+        if (res[0]?.status === 'done') {
+          setLightLogoPreviewUrl(res[0]?.thumbUrl);
+        }
+      });
+      if (data[0]?.json?.lightLogo) {
+        setLightLogo(
+          Array.isArray(data[0]?.json?.lightLogo)
+            ? data[0]?.json?.lightLogo
+            : [data[0]?.json?.lightLogo],
+        );
+      } else {
+        setLightLogo([]);
+      }
+
+      getThumbFileUrls([{ '@uri': `${data[0]?.json?.darkLogo}` }]).then((res) => {
+        if (res[0]?.status === 'done') {
+          setDarkLogoPreviewUrl(res[0]?.thumbUrl);
+        }
+      });
+      if (data[0]?.json?.darkLogo) {
+        setDarkLogo(
+          Array.isArray(data[0]?.json?.darkLogo)
+            ? data[0]?.json?.darkLogo
+            : [data[0]?.json?.darkLogo],
+        );
+      } else {
+        setDarkLogo([]);
+      }
+
       formRefEdit.current?.setFieldsValue({
         ...formData,
-        darkLogo: LogoBaseUrl + data[0]?.json?.darkLogo,
-        lightLogo: LogoBaseUrl + data[0]?.json?.lightLogo,
       });
     }
     setTeamInfoSpinning(false);
@@ -162,70 +200,20 @@ const Team = () => {
 
     const removeLogo = async (type: 'lightLogo' | 'darkLogo') => {
       if (type === 'lightLogo') {
-        setLightLogo('');
+        setLightLogo([]);
+        setLightLogoPreviewUrl('');
       } else {
-        setDarkLogo('');
-      }
-    };
-
-    const uploadLogo = async (fileList: UploadFile[], type: 'lightLogo' | 'darkLogo') => {
-      if (fileList.length > 0) {
-        const file = fileList[0].originFileObj;
-        if (file) {
-          if (!file.type.startsWith('image/')) {
-            message.error(
-              intl.formatMessage({
-                id: 'teams.logo.typeError',
-                defaultMessage: 'Only image files can be uploaded!',
-              }),
-            );
-            if (type === 'lightLogo') {
-              setLightLogo('');
-            } else {
-              setDarkLogo('');
-            }
-            setLightLogoSpinning(false);
-            setDarkLogoSpinning(false);
-            return;
-          }
-          if (/[\u4e00-\u9fa5]/.test(file.name)) {
-            message.error(
-              intl.formatMessage({
-                id: 'teams.logo.nameError',
-                defaultMessage: 'File name cannot contain Chinese characters!',
-              }),
-            );
-            if (type === 'lightLogo') {
-              setLightLogo('');
-            } else {
-              setDarkLogo('');
-            }
-            setLightLogoSpinning(false);
-            setDarkLogoSpinning(false);
-            return;
-          }
-          try {
-            const { data } = await uploadLogoApi(file.name, file);
-            if (type === 'lightLogo') {
-              setLightLogo(data.path);
-            } else {
-              setDarkLogo(data.path);
-            }
-          } catch (error) {
-            console.log('upload error', error);
-          } finally {
-            setLightLogoSpinning(false);
-            setDarkLogoSpinning(false);
-          }
-        }
+        setDarkLogo([]);
+        setDarkLogoPreviewUrl('');
       }
     };
 
     const editTeamInfo = async (values: any) => {
-      const { rank } = values;
+      const { rank, is_public } = values;
       delete values.rank;
+      delete values.is_public;
       const params = getParams(values);
-      const { error } = await editTeamMessage(teamId, { ...params, darkLogo, lightLogo }, rank);
+      const { error } = await editTeamMessage(teamId, { ...params }, rank, is_public);
       if (error) {
         message.error(
           intl.formatMessage({
@@ -244,10 +232,11 @@ const Team = () => {
     };
 
     const createTeamInfo = async (values: any) => {
-      const { rank } = values;
+      const { rank, is_public } = values;
       delete values.rank;
+      delete values.is_public;
       const params = getParams(values);
-      const error = await createTeamMessage(v4(), { ...params, darkLogo, lightLogo }, rank);
+      const error = await createTeamMessage(v4(), { ...params }, rank, is_public);
       if (error) {
         message.error(
           intl.formatMessage({
@@ -267,9 +256,80 @@ const Team = () => {
       }
     };
 
+    const uploadLogo = async (fileList: FileType[], type: 'lightLogo' | 'darkLogo') => {
+      if (fileList.length > 0) {
+        const file = fileList[0];
+        if (file) {
+          if (!isImage(file)) {
+            message.error(
+              intl.formatMessage({
+                id: 'teams.logo.typeError',
+                defaultMessage: 'Only image files can be uploaded!',
+              }),
+            );
+            if (type === 'lightLogo') {
+              setLightLogo([]);
+            } else {
+              setDarkLogo([]);
+            }
+            return;
+          }
+
+          try {
+            const suffix: string = file.name.split('.').pop() || '';
+            const { data } = await uploadLogoApi(file.name, file, suffix);
+            if (type === 'lightLogo') {
+              setLightLogoError(false);
+              setBeforeLightLogoPath(data?.path);
+              return data.path;
+            } else {
+              setDarkLogoError(false);
+              setBeforeDarkLogoPath(data?.path);
+              return data.path;
+            }
+          } catch (error) {
+            console.log('upload error', error);
+          }
+        }
+      }
+    };
+
+    const handleRemoveLogo = async (type: 'lightLogo' | 'darkLogo') => {
+      if (type === 'lightLogo') {
+        setLightLogo([]);
+        setLightLogoPreviewUrl('');
+        await removeLogoApi([beforeLightLogoPath]);
+      } else {
+        setDarkLogo([]);
+        setDarkLogoPreviewUrl('');
+        await removeLogoApi([beforeDarkLogoPath]);
+      }
+    };
+
     const submitTeamInfo = async (values: any) => {
       try {
+        if (!lightLogo.length || !darkLogo.length) {
+          if (rank === 0) {
+            setLightLogoError(!lightLogo.length);
+            setDarkLogoError(!darkLogo.length);
+            return;
+          } else {
+            if (!lightLogo.length) {
+              handleRemoveLogo('lightLogo');
+            }
+            if (!darkLogo.length) {
+              handleRemoveLogo('darkLogo');
+            }
+          }
+        }
+
         setTeamInfoSpinning(true);
+
+        const lightLogoPath = await uploadLogo(lightLogo, 'lightLogo');
+        const darkLogoPath = await uploadLogo(darkLogo, 'darkLogo');
+        values.lightLogo = lightLogoPath ? `../sys-files/${lightLogoPath}` : null;
+        values.darkLogo = darkLogoPath ? `../sys-files/${darkLogoPath}` : null;
+
         if (action === 'edit') {
           if (!teamId) return;
           await editTeamInfo(values);
@@ -287,7 +347,9 @@ const Team = () => {
       <Flex gap='small' vertical style={{ maxWidth: '50%', minWidth: '200px' }}>
         <Spin spinning={teamInfoSpinning}>
           <ProForm
-            disabled={userRole !== 'admin' && userRole !== 'owner' && action !== 'create'}
+            disabled={
+              (userRole !== 'admin' && userRole !== 'owner' && action !== 'create') || rank > 0
+            }
             formRef={formRefEdit}
             submitter={{
               resetButtonProps: false,
@@ -360,16 +422,16 @@ const Team = () => {
               />
             </Form.Item>
             <Form.Item
-              name='rank'
-              label={<FormattedMessage id='pages.team.info.public' defaultMessage='Public' />}
+              name='is_public'
+              label={
+                <>
+                  <FormattedMessage id='pages.team.info.public' defaultMessage='Public' />
+                  <Tooltip title={intl.formatMessage({ id: 'pages.team.info.public.tooltip' })}>
+                    <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                  </Tooltip>
+                </>
+              }
               valuePropName='checked'
-              getValueProps={(value) => ({
-                checked: value !== -1,
-              })}
-              normalize={(value) => {
-                console.log(value);
-                return value ? 0 : -1;
-              }}
             >
               <Switch
                 disabled={
@@ -377,79 +439,158 @@ const Team = () => {
                 }
               />
             </Form.Item>
-            {/* <Flex gap="middle" > */}
+            <Form.Item
+              name='rank'
+              label={
+                <>
+                  <FormattedMessage
+                    id='pages.team.info.showInHome'
+                    defaultMessage='Apply to display on the homepage'
+                  />
+                  <Tooltip title={intl.formatMessage({ id: 'pages.team.info.showInHome.tooltip' })}>
+                    <QuestionCircleOutlined style={{ marginLeft: 4 }} />
+                  </Tooltip>
+                </>
+              }
+              valuePropName='checked'
+              getValueProps={(value) => ({
+                checked: value === 0,
+              })}
+              normalize={(value) => {
+                return value ? 0 : -1;
+              }}
+            >
+              <Switch
+                disabled={
+                  (userRole !== 'admin' && userRole !== 'owner' && action !== 'create') || rank > 0
+                }
+                onChange={(checked) => {
+                  setRank(checked ? 0 : -1);
+                  setLightLogoError(false);
+                  setDarkLogoError(false);
+                }}
+              />
+            </Form.Item>
             <Form.Item
               name='lightLogo'
               label={
                 <FormattedMessage id='pages.team.info.lightLogo' defaultMessage='Light Logo' />
               }
+              rules={[
+                {
+                  required: rank === 0,
+                  message: (
+                    <FormattedMessage
+                      id='pages.team.info.lightLogo.required'
+                      defaultMessage='Please upload light logo!'
+                    />
+                  ),
+                },
+              ]}
+              validateStatus={lightLogoError ? 'error' : undefined}
+              help={
+                lightLogoError ? (
+                  <FormattedMessage
+                    id='pages.team.info.lightLogo.required'
+                    defaultMessage='Please upload light logo!'
+                  />
+                ) : undefined
+              }
             >
-              <Upload
-                disabled={userRole !== 'admin' && userRole !== 'owner' && action !== 'create'}
-                beforeUpload={() => {
-                  setLightLogoSpinning(true);
-                  return true;
-                }}
-                onRemove={() => removeLogo('lightLogo')}
-                maxCount={1}
-                listType='picture-card'
-                fileList={
-                  lightLogo
-                    ? [
-                        {
-                          uid: '-1',
-                          name: 'logo',
-                          status: 'done',
-                          url: LogoBaseUrl + lightLogo,
-                        },
-                      ]
-                    : []
-                }
-                onChange={({ fileList }) => uploadLogo(fileList, 'lightLogo')}
-              >
-                {lightLogo.length === 0 && (
-                  <Spin spinning={lightLogoSpinning}>
-                    <PlusOutlined />
-                  </Spin>
-                )}
-              </Upload>
+              <div>
+                <Upload
+                  disabled={
+                    (userRole !== 'admin' && userRole !== 'owner' && action !== 'create') ||
+                    rank > 0
+                  }
+                  beforeUpload={(file) => {
+                    getBase64(file as FileType).then((url) => {
+                      setLightLogoPreviewUrl(url);
+                      setLightLogo([file]);
+                      setLightLogoError(false);
+                    });
+
+                    return false;
+                  }}
+                  onRemove={() => removeLogo('lightLogo')}
+                  maxCount={1}
+                  listType='picture-card'
+                  fileList={
+                    lightLogo && lightLogo.length > 0
+                      ? [
+                          {
+                            uid: '-1',
+                            name: 'logo',
+                            status: 'done',
+                            url: lightLogoPreviewUrl,
+                          },
+                        ]
+                      : []
+                  }
+                >
+                  {lightLogo && lightLogo.length === 0 && <PlusOutlined />}
+                </Upload>
+              </div>
             </Form.Item>
 
             <Form.Item
               name='darkLogo'
               label={<FormattedMessage id='pages.team.info.darkLogo' defaultMessage='Dark Logo' />}
+              rules={[
+                {
+                  required: rank === 0,
+                  message: (
+                    <FormattedMessage
+                      id='pages.team.info.darkLogo.required'
+                      defaultMessage='Please upload dark logo!'
+                    />
+                  ),
+                },
+              ]}
+              validateStatus={darkLogoError ? 'error' : undefined}
+              help={
+                darkLogoError ? (
+                  <FormattedMessage
+                    id='pages.team.info.darkLogo.required'
+                    defaultMessage='Please upload dark logo!'
+                  />
+                ) : undefined
+              }
             >
-              <Upload
-                disabled={userRole !== 'admin' && userRole !== 'owner' && action !== 'create'}
-                beforeUpload={() => {
-                  setDarkLogoSpinning(true);
-                  return true;
-                }}
-                onRemove={() => removeLogo('darkLogo')}
-                maxCount={1}
-                listType='picture-card'
-                fileList={
-                  darkLogo
-                    ? [
-                        {
-                          uid: '-1',
-                          name: 'logo',
-                          status: 'done',
-                          url: LogoBaseUrl + darkLogo,
-                        },
-                      ]
-                    : []
-                }
-                onChange={({ fileList }) => uploadLogo(fileList, 'darkLogo')}
-              >
-                {darkLogo.length === 0 && (
-                  <Spin spinning={darkLogoSpinning}>
-                    <PlusOutlined />
-                  </Spin>
-                )}
-              </Upload>
+              <div>
+                <Upload
+                  disabled={
+                    (userRole !== 'admin' && userRole !== 'owner' && action !== 'create') ||
+                    rank > 0
+                  }
+                  beforeUpload={(file) => {
+                    getBase64(file as FileType).then((url) => {
+                      setDarkLogoPreviewUrl(url);
+                      setDarkLogo([file]);
+                      setDarkLogoError(false);
+                    });
+                    return false;
+                  }}
+                  onRemove={() => removeLogo('darkLogo')}
+                  maxCount={1}
+                  listType='picture-card'
+                  fileList={
+                    darkLogo && darkLogo.length > 0
+                      ? [
+                          {
+                            uid: '-1',
+                            name: 'logo',
+                            status: 'done',
+                            url: darkLogoPreviewUrl,
+                          },
+                        ]
+                      : []
+                  }
+                >
+                  {darkLogo && darkLogo.length === 0 && <PlusOutlined />}
+                </Upload>
+              </div>
             </Form.Item>
-            {/* </Flex> */}
           </ProForm>
         </Spin>
       </Flex>

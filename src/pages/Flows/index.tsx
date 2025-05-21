@@ -5,6 +5,7 @@ import { FormattedMessage, useIntl, useLocation } from 'umi';
 
 import AllVersionsList from '@/components/AllVersions';
 import ContributeData from '@/components/ContributeData';
+import ExportData from '@/components/ExportData';
 import { FlowTable } from '@/services/flows/data';
 import { contributeSource } from '@/services/general/api';
 import { ListPagination } from '@/services/general/data';
@@ -46,7 +47,7 @@ const TableList: FC = () => {
     {
       title: <FormattedMessage id='pages.table.title.name' defaultMessage='Name' />,
       dataIndex: 'name',
-      sorter: false,
+      sorter: true,
       search: false,
       render: (_, row) => {
         return [
@@ -75,7 +76,7 @@ const TableList: FC = () => {
         <FormattedMessage id='pages.table.title.classification' defaultMessage='Classification' />
       ),
       dataIndex: 'classification',
-      sorter: false,
+      sorter: true,
       search: false,
       render: (_, row) => {
         return row?.classification && row?.classification !== 'undefined'
@@ -198,6 +199,7 @@ const TableList: FC = () => {
                 }}
                 disabled={!!row.teamId}
               />
+              <ExportData tableName='flows' id={row.id} version={row.version} />
             </Space>,
           ];
         }
@@ -217,6 +219,7 @@ const TableList: FC = () => {
               lang={lang}
               actionRef={actionRef}
             />
+            <ExportData tableName='flows' id={row.id} version={row.version} />
           </Space>,
         ];
       },
@@ -288,7 +291,24 @@ const TableList: FC = () => {
               flowType: flowTypeFilter,
             });
           }
-          return getFlowTableAll(params, sort, lang, dataSource, tid ?? '', {
+
+          const sortFields: Record<string, string> = {
+            name: 'json->flowDataSet->flowInformation->dataSetInformation->name',
+            classification:
+              'json->flowDataSet->flowInformation->dataSetInformation->classificationInformation',
+          };
+
+          const convertedSort: Record<string, any> = {};
+          if (sort && Object.keys(sort).length > 0) {
+            const field = Object.keys(sort)[0];
+            if (sortFields[field]) {
+              convertedSort[sortFields[field]] = sort[field];
+            } else {
+              convertedSort[field] = sort[field];
+            }
+          }
+
+          return getFlowTableAll(params, convertedSort, lang, dataSource, tid ?? '', {
             flowType: flowTypeFilter,
           });
         }}

@@ -24,6 +24,7 @@ export default {
   'pages.button.create': '创建',
   'pages.button.reset': '重置',
   'pages.button.cancel': '取消',
+  'pages.button.temporarySave': '暂存',
   'pages.button.submit': '提交',
   'pages.button.save': '保存',
   'pages.button.review': '提交审核',
@@ -68,4 +69,7 @@ export default {
 
   'pages.version': '版本',
   'pages.lang.select': '请选择语言',
+
+  'page.exportData.success': '数据导出成功',
+  'page.exportData.error': '数据导出失败',
 };

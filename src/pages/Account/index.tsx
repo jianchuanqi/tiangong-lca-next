@@ -2,6 +2,7 @@ import {
   changeEmail,
   changePassword,
   currentUser,
+  login,
   setProfile,
 } from '@/services/ant-design-pro/api';
 import { IdcardOutlined, LockOutlined, MailOutlined, UserOutlined } from '@ant-design/icons';
@@ -16,11 +17,16 @@ const Profile: FC = () => {
   const formRefEdit = useRef<ProFormInstance>();
   const [initData, setInitData] = useState<API.CurrentUser | null>(null);
   const [roleValue, setRoleValue] = useState<string>('');
+  const [apiKey, setApiKey] = useState<string>('');
   const intl = useIntl();
   const { token } = theme.useToken();
   const { setInitialState } = useModel('@@initialState');
 
   const onTabChange = (key: string) => {
+    if (activeTabKey === 'generateAPIKey' && key !== 'generateAPIKey' && apiKey) {
+      setApiKey('');
+    }
+
     setActiveTabKey(key);
   };
 
@@ -422,6 +428,121 @@ const Profile: FC = () => {
     </Flex>
   );
 
+  const renderGenerateAPIKey = () => {
+    return (
+      <Flex gap='middle' vertical style={{ maxWidth: '50%', minWidth: '300px' }}>
+        <ProForm
+          formRef={formRefEdit}
+          submitter={{
+            searchConfig: {
+              submitText: intl.formatMessage({
+                id: 'pages.account.apiKey.generateButton',
+                defaultMessage: 'Generate Key',
+              }),
+            },
+            render: (props, doms) => {
+              return (
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <Flex gap='middle'>{doms}</Flex>
+                </div>
+              );
+            },
+          }}
+          onFinish={async (values) => {
+            setSpinning(true);
+            try {
+              // First validate credentials by attempting to login
+              const loginResult = await login({
+                email: initData?.email || '',
+                password: values.currentPassword,
+              });
+
+              if (loginResult.status !== 'ok') {
+                message.error(
+                  intl.formatMessage({
+                    id: 'pages.account.invalidCredentials',
+                    defaultMessage: 'Invalid credentials. Please check your password.',
+                  }),
+                );
+                setSpinning(false);
+                return false;
+              }
+
+              // If login successful, generate API key
+              const payload = {
+                email: initData?.email || '',
+                password: values.currentPassword,
+              };
+
+              // Convert JSON to string and then to Base64
+              const jsonString = JSON.stringify(payload, null, 0);
+              const encodedKey = btoa(jsonString);
+
+              setApiKey(encodedKey);
+
+              const successMsg = intl.formatMessage({
+                id: 'pages.account.apiKey.generated.success',
+                defaultMessage: 'API Key generated successfully!',
+              });
+              message.success(successMsg);
+
+              setSpinning(false);
+              return true;
+            } catch (error) {
+              setSpinning(false);
+              message.error('An error occurred while generating the API key.');
+              return false;
+            }
+          }}
+        >
+          <Form.Item name={'email'} initialValue={initData?.email} style={{ display: 'none' }}>
+            <Input />
+          </Form.Item>
+
+          <Form.Item
+            name='currentPassword'
+            label={
+              <FormattedMessage
+                id='pages.account.password.currentPassword'
+                defaultMessage='Current Password'
+              />
+            }
+            rules={[
+              {
+                required: true,
+                message: (
+                  <FormattedMessage
+                    id='pages.account.currentPassword.required'
+                    defaultMessage='Please input your current password!'
+                  />
+                ),
+              },
+            ]}
+            hasFeedback
+          >
+            <Input.Password prefix={<LockOutlined />} />
+          </Form.Item>
+
+          {apiKey && (
+            <Form.Item
+              label={<FormattedMessage id='pages.account.apiKey' defaultMessage='API Key' />}
+            >
+              <Input.TextArea value={apiKey} autoSize={{ minRows: 2, maxRows: 6 }} readOnly />
+              <div style={{ marginTop: 12, display: 'flex', justifyContent: 'center' }}>
+                <div style={{ color: token.colorWarning, marginTop: 8 }}>
+                  <FormattedMessage
+                    id='pages.account.apiKey.viewed'
+                    defaultMessage='Make sure to copy it to a secure location. This key will not be shown again.'
+                  />
+                </div>
+              </div>
+            </Form.Item>
+          )}
+        </ProForm>
+      </Flex>
+    );
+  };
+
   useEffect(() => {
     setSpinning(true);
     currentUser().then((res) => {
@@ -476,6 +597,14 @@ const Profile: FC = () => {
                 defaultMessage: 'Change Email',
               }),
               children: renderChangeEmailForm(),
+            },
+            {
+              key: 'generateAPIKey',
+              label: intl.formatMessage({
+                id: 'pages.account.generateAPIKey',
+                defaultMessage: 'Generate API Key',
+              }),
+              children: renderGenerateAPIKey(),
             },
           ]}
         ></Tabs>

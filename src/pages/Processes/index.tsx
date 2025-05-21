@@ -5,6 +5,7 @@ import { FormattedMessage, useIntl, useLocation } from 'umi';
 
 import AllVersionsList from '@/components/AllVersions';
 import ContributeData from '@/components/ContributeData';
+import ExportData from '@/components/ExportData';
 import LifeCycleModelCreate from '@/pages/LifeCycleModels/Components/create';
 import LifeCycleModelEdit from '@/pages/LifeCycleModels/Components/edit';
 import LifeCycleModelView from '@/pages/LifeCycleModels/Components/view';
@@ -20,8 +21,14 @@ import { getAllVersionsColumns, getDataTitle } from '../Utils';
 import ProcessCreate from './Components/create';
 import ProcessDelete from './Components/delete';
 import ProcessEdit from './Components/edit';
+import { processtypeOfDataSetOptions } from './Components/optiondata';
 import ProcessView from './Components/view';
 const { Search } = Input;
+
+const getProcesstypeOfDataSetOptions = (value: string) => {
+  const option = processtypeOfDataSetOptions.find((opt) => opt.value === value);
+  return option ? option.label : '-';
+};
 
 const TableList: FC = () => {
   const [keyWord, setKeyWord] = useState<any>('');
@@ -48,7 +55,7 @@ const TableList: FC = () => {
     {
       title: <FormattedMessage id='pages.table.title.name' defaultMessage='Name' />,
       dataIndex: 'name',
-      sorter: false,
+      sorter: true,
       search: false,
       render: (_, row) => {
         return [
@@ -63,8 +70,22 @@ const TableList: FC = () => {
         <FormattedMessage id='pages.table.title.classification' defaultMessage='Classification' />
       ),
       dataIndex: 'classification',
+      sorter: true,
+      search: false,
+    },
+    {
+      title: (
+        <FormattedMessage
+          id='pages.process.view.modellingAndValidation.typeOfDataSet'
+          defaultMessage='Type of data set'
+        />
+      ),
+      dataIndex: 'typeOfDataSet',
       sorter: false,
       search: false,
+      render: (_, row) => {
+        return getProcesstypeOfDataSetOptions(row.typeOfDataSet);
+      },
     },
     {
       title: <FormattedMessage id='pages.process.referenceYear' defaultMessage='Reference year' />,
@@ -228,6 +249,7 @@ const TableList: FC = () => {
                 }}
                 disabled={!!row.teamId}
               />
+              <ExportData tableName='processes' id={row.id} version={row.version} />
             </Space>,
           ];
         }
@@ -249,6 +271,7 @@ const TableList: FC = () => {
               lang={lang}
               actionRef={actionRef}
             />
+            <ExportData tableName='processes' id={row.id} version={row.version} />
           </Space>,
         ];
       },
@@ -316,7 +339,24 @@ const TableList: FC = () => {
           if (keyWord.length > 0) {
             return getProcessTablePgroongaSearch(params, lang, dataSource, keyWord, {});
           }
-          return getProcessTableAll(params, sort, lang, dataSource, tid ?? '');
+
+          const sortFields: Record<string, string> = {
+            name: 'json->processDataSet->processInformation->dataSetInformation->name',
+            classification:
+              'json->processDataSet->processInformation->dataSetInformation->classificationInformation->"common:classification"->"common:class"',
+          };
+
+          const convertedSort: Record<string, any> = {};
+          if (sort && Object.keys(sort).length > 0) {
+            const field = Object.keys(sort)[0];
+            if (sortFields[field]) {
+              convertedSort[sortFields[field]] = sort[field];
+            } else {
+              convertedSort[field] = sort[field];
+            }
+          }
+
+          return getProcessTableAll(params, convertedSort, lang, dataSource, tid ?? '');
         }}
         columns={processColumns}
       />

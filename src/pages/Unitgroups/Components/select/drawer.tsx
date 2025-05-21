@@ -228,7 +228,6 @@ const UnitgroupsSelectDrawer: FC<Props> = ({ buttonType, buttonText, lang, onDat
           />
         </Card>
         <ProTable<UnitGroupTable, ListPagination>
-          rowKey={(record) => `${record.id}-${record.version}`}
           actionRef={myActionRefSelect}
           search={false}
           pagination={{
@@ -399,7 +398,9 @@ const UnitgroupsSelectDrawer: FC<Props> = ({ buttonType, buttonText, lang, onDat
             <Button
               onClick={() => {
                 const keys = selectedRowKeys?.[0]?.toString().split(':');
-                onData(keys[0], keys[1]);
+                if (keys && keys.length) {
+                  onData(keys[0], keys[1]);
+                }
                 setDrawerVisible(false);
               }}
               type='primary'

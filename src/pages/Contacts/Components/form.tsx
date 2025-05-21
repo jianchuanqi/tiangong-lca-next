@@ -78,13 +78,14 @@ export const ContactForm: FC<Props> = ({
                   defaultMessage='Short name for contact'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['contactInformation']['dataSetInformation'][
-                  'common:shortName'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['contactInformation']['dataSetInformation'][
+              //     'common:shortName'
+              //   ]['rules'] ?? [],
+              // )}
             />
           </Card>
+          <br />
           <Card
             size='small'
             title={
@@ -101,13 +102,14 @@ export const ContactForm: FC<Props> = ({
               setRuleErrorState={setShowNameError}
               name={['contactInformation', 'dataSetInformation', 'common:name']}
               label={<FormattedMessage id='pages.contact.name' defaultMessage='Name of contact' />}
-              rules={getRules(
-                schema['contactDataSet']['contactInformation']['dataSetInformation']['common:name'][
-                  'rules'
-                ] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['contactInformation']['dataSetInformation']['common:name'][
+              //     'rules'
+              //   ] ?? [],
+              // )}
             />
           </Card>
+          <br />
           <LevelTextItemForm
             name={[
               'contactInformation',
@@ -120,11 +122,11 @@ export const ContactForm: FC<Props> = ({
             dataType={'Contact'}
             formRef={formRef}
             onData={onData}
-            rules={getRules(
-              schema['contactDataSet']['contactInformation']['dataSetInformation'][
-                'classificationInformation'
-              ]['common:classification']['rules'] ?? [],
-            )}
+            // rules={getRules(
+            //   schema['contactDataSet']['contactInformation']['dataSetInformation'][
+            //     'classificationInformation'
+            //   ]['common:classification']['rules'] ?? [],
+            // )}
           />
           <Card
             size='small'
@@ -143,54 +145,55 @@ export const ContactForm: FC<Props> = ({
                   defaultMessage='Contact address'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['contactInformation']['dataSetInformation'][
-                  'contactAddress'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['contactInformation']['dataSetInformation'][
+              //     'contactAddress'
+              //   ]['rules'] ?? [],
+              // )}
             />
           </Card>
+          <br />
           <Form.Item
             label={<FormattedMessage id='pages.contact.telephone' defaultMessage='Telephone' />}
             name={['contactInformation', 'dataSetInformation', 'telephone']}
-            rules={getRules(
-              schema['contactDataSet']['contactInformation']['dataSetInformation']['telephone'][
-                'rules'
-              ] ?? [],
-            )}
+            // rules={getRules(
+            //   schema['contactDataSet']['contactInformation']['dataSetInformation']['telephone'][
+            //     'rules'
+            //   ] ?? [],
+            // )}
           >
             <Input />
           </Form.Item>
           <Form.Item
             label={<FormattedMessage id='pages.contact.telefax' defaultMessage='Telefax' />}
             name={['contactInformation', 'dataSetInformation', 'telefax']}
-            rules={getRules(
-              schema['contactDataSet']['contactInformation']['dataSetInformation']['telefax'][
-                'rules'
-              ] ?? [],
-            )}
+            // rules={getRules(
+            //   schema['contactDataSet']['contactInformation']['dataSetInformation']['telefax'][
+            //     'rules'
+            //   ] ?? [],
+            // )}
           >
             <Input />
           </Form.Item>
           <Form.Item
             label={<FormattedMessage id='pages.contact.email' defaultMessage='E-mail' />}
             name={['contactInformation', 'dataSetInformation', 'email']}
-            rules={getRules(
-              schema['contactDataSet']['contactInformation']['dataSetInformation']['email'][
-                'rules'
-              ] ?? [],
-            )}
+            // rules={getRules(
+            //   schema['contactDataSet']['contactInformation']['dataSetInformation']['email'][
+            //     'rules'
+            //   ] ?? [],
+            // )}
           >
             <Input />
           </Form.Item>
           <Form.Item
             label={<FormattedMessage id='pages.contact.WWWAddress' defaultMessage='WWW-Address' />}
             name={['contactInformation', 'dataSetInformation', 'WWWAddress']}
-            rules={getRules(
-              schema['contactDataSet']['contactInformation']['dataSetInformation']['WWWAddress'][
-                'rules'
-              ] ?? [],
-            )}
+            // rules={getRules(
+            //   schema['contactDataSet']['contactInformation']['dataSetInformation']['WWWAddress'][
+            //     'rules'
+            //   ] ?? [],
+            // )}
           >
             <Input />
           </Form.Item>
@@ -211,13 +214,14 @@ export const ContactForm: FC<Props> = ({
                   defaultMessage='Central contact point'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['contactInformation']['dataSetInformation'][
-                  'centralContactPoint'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['contactInformation']['dataSetInformation'][
+              //     'centralContactPoint'
+              //   ]['rules'] ?? [],
+              // )}
             />
           </Card>
+          <br />
           <Card
             size='small'
             title={
@@ -235,13 +239,14 @@ export const ContactForm: FC<Props> = ({
                   defaultMessage='Contact description or comment'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['contactInformation']['dataSetInformation'][
-                  'contactDescriptionOrComment'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['contactInformation']['dataSetInformation'][
+              //     'contactDescriptionOrComment'
+              //   ]['rules'] ?? [],
+              // )}
             />
           </Card>
+          <br />
           <ContactSelectForm
             label={
               <FormattedMessage
@@ -254,8 +259,8 @@ export const ContactForm: FC<Props> = ({
             formRef={formRef}
             onData={onData}
           />
+          <br />
           <SourceSelectForm
-            defaultSourceName={formType === 'create' ? 'ILCD format' : undefined}
             label={
               <FormattedMessage
                 id='pages.contact.referenceToLogo'
@@ -286,34 +291,35 @@ export const ContactForm: FC<Props> = ({
                   defaultMessage='Time stamp (last saved)'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['administrativeInformation']['dataEntryBy'][
-                  'common:timeStamp'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['administrativeInformation']['dataEntryBy'][
+              //     'common:timeStamp'
+              //   ]['rules'] ?? [],
+              // )}
               name={['administrativeInformation', 'dataEntryBy', 'common:timeStamp']}
             >
               <Input disabled={true} style={{ color: token.colorTextDescription }} />
             </Form.Item>
-            <br />
             <SourceSelectForm
+              defaultSourceName={formType === 'create' ? 'ILCD format' : undefined}
               label={
                 <FormattedMessage
                   id='pages.contact.referenceToDataSetFormat'
                   defaultMessage='Data set format(s)'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['administrativeInformation']['dataEntryBy'][
-                  'common:referenceToDataSetFormat'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['administrativeInformation']['dataEntryBy'][
+              //     'common:referenceToDataSetFormat'
+              //   ]['rules'] ?? [],
+              // )}
               name={['administrativeInformation', 'dataEntryBy', 'common:referenceToDataSetFormat']}
               lang={lang}
               formRef={formRef}
               onData={onData}
             />
           </Card>
+          <br />
           <Card
             size='small'
             title={
@@ -350,11 +356,11 @@ export const ContactForm: FC<Props> = ({
                   defaultMessage='Owner of data set'
                 />
               }
-              rules={getRules(
-                schema['contactDataSet']['administrativeInformation']['publicationAndOwnership'][
-                  'common:referenceToOwnershipOfDataSet'
-                ]['rules'] ?? [],
-              )}
+              // rules={getRules(
+              //   schema['contactDataSet']['administrativeInformation']['publicationAndOwnership'][
+              //     'common:referenceToOwnershipOfDataSet'
+              //   ]['rules'] ?? [],
+              // )}
               name={[
                 'administrativeInformation',
                 'publicationAndOwnership',
@@ -365,7 +371,7 @@ export const ContactForm: FC<Props> = ({
               onData={onData}
             />
             <br />
-            <ContactSelectForm
+            {/* <ContactSelectForm
               label={
                 <FormattedMessage
                   id='pages.contact.referenceToPrecedingDataSetVersion'
@@ -381,7 +387,7 @@ export const ContactForm: FC<Props> = ({
               formRef={formRef}
               onData={onData}
             />
-            <br />
+            <br /> */}
             <Form.Item
               label={
                 <FormattedMessage
