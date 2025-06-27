@@ -46,6 +46,7 @@ export default {
   'pages.button.model.save': '提交保存',
   'pages.button.model.result': '模型结果',
   'pages.button.model.process': '过程信息',
+  'pages.button.model.lifecyclemodel': '模型信息',
   'pages.button.model.exchange': '交换关系',
   'pages.button.model.connection': '连接关系',
   'pages.button.model.delete': '删除元素',
@@ -78,4 +79,9 @@ export default {
 
   'page.options.savesuccess': '保存成功',
   'page.select.unRuleVerification': '请将数据补充完整',
+
+  'pages.table.filter.all': '全部',
+  'pages.table.filter.unreviewed': '未审查',
+  'pages.table.filter.reviewing': '正在审查',
+  'pages.table.filter.reviewed': '已审查',
 };

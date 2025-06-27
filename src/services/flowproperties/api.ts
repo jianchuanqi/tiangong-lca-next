@@ -28,13 +28,27 @@ export async function createFlowproperties(id: string, data: any) {
 export async function updateFlowproperties(id: string, version: string, data: any) {
   const newData = genFlowpropertyJsonOrdered(id, data);
   const rule_verification = getRuleVerification(schema, newData);
-  const updateResult = await supabase
-    .from('flowproperties')
-    .update({ json_ordered: newData, rule_verification })
-    .eq('id', id)
-    .eq('version', version)
-    .select();
-  return updateResult;
+
+  let result: any = {};
+  const session = await supabase.auth.getSession();
+  if (session.data.session) {
+    result = await supabase.functions.invoke('update_data', {
+      headers: {
+        Authorization: `Bearer ${session.data.session?.access_token ?? ''}`,
+      },
+      body: {
+        id,
+        version,
+        table: 'flowproperties',
+        data: { json_ordered: newData, rule_verification },
+      },
+      region: FunctionRegion.UsEast1,
+    });
+  }
+  if (result.error) {
+    console.log('error', result.error);
+  }
+  return result?.data;
 }
 
 export async function deleteFlowproperties(id: string, version: string) {
@@ -51,6 +65,7 @@ export async function getFlowpropertyTableAll(
   lang: string,
   dataSource: string,
   tid: string | [],
+  stateCode?: string | number,
 ) {
   const sortBy = Object.keys(sort)[0] ?? 'modified_at';
   const orderBy = sort[sortBy] ?? 'descend';
@@ -89,6 +104,9 @@ export async function getFlowpropertyTableAll(
       query = query.eq('team_id', tid);
     }
   } else if (dataSource === 'my') {
+    if (typeof stateCode === 'number') {
+      query = query.eq('state_code', stateCode);
+    }
     const session = await supabase.auth.getSession();
     if (session.data.session) {
       query = query.eq('user_id', session?.data?.session?.user?.id);
@@ -201,18 +219,32 @@ export async function getFlowpropertyTablePgroongaSearch(
   dataSource: string,
   queryText: string,
   filterCondition: any,
+  stateCode?: string | number,
 ) {
   let result: any = {};
   const session = await supabase.auth.getSession();
   if (session.data.session) {
-    result = await supabase.rpc('pgroonga_search_flowproperties', {
-      query_text: queryText,
-      filter_condition: filterCondition,
-      page_size: params.pageSize ?? 10,
-      page_current: params.current ?? 1,
-      data_source: dataSource,
-      this_user_id: session.data.session.user?.id,
-    });
+    result = await supabase.rpc(
+      'pgroonga_search_flowproperties',
+      typeof stateCode === 'number'
+        ? {
+            query_text: queryText,
+            filter_condition: filterCondition,
+            page_size: params.pageSize ?? 10,
+            page_current: params.current ?? 1,
+            data_source: dataSource,
+            this_user_id: session.data.session.user?.id,
+            state_code: stateCode,
+          }
+        : {
+            query_text: queryText,
+            filter_condition: filterCondition,
+            page_size: params.pageSize ?? 10,
+            page_current: params.current ?? 1,
+            data_source: dataSource,
+            this_user_id: session.data.session.user?.id,
+          },
+    );
   }
   if (result.error) {
     console.log('error', result.error);
@@ -331,6 +363,7 @@ export async function flowproperty_hybrid_search(
   dataSource: string,
   queryText: string,
   filterCondition: any,
+  stateCode?: string | number,
 ) {
   let result: any = {};
   const session = await supabase.auth.getSession();
@@ -339,7 +372,10 @@ export async function flowproperty_hybrid_search(
       headers: {
         Authorization: `Bearer ${session.data.session?.access_token ?? ''}`,
       },
-      body: { query: queryText, filter: filterCondition },
+      body:
+        typeof stateCode === 'number'
+          ? { query: queryText, filter: filterCondition, state_code: stateCode }
+          : { query: queryText, filter: filterCondition },
       region: FunctionRegion.UsEast1,
     });
   }

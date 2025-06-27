@@ -126,8 +126,24 @@ const Profile: FC = () => {
                   defaultMessage: 'Password changed successfully!',
                 }),
               );
-            } else {
-              message.error(msg.message);
+            } else if (msg.status === 'error') {
+              if (msg.message === 'User not found') {
+                message.error(
+                  intl.formatMessage({
+                    id: 'pages.account.userNotFound',
+                    defaultMessage: 'User not found',
+                  }),
+                );
+              } else if (msg.message === 'Password incorrect') {
+                message.error(
+                  intl.formatMessage({
+                    id: 'pages.account.currentPassword.invalid',
+                    defaultMessage: 'Invalid current password',
+                  }),
+                );
+              } else {
+                message.error(msg.message);
+              }
             }
           } catch (error) {
             message.error(
@@ -154,6 +170,12 @@ const Profile: FC = () => {
               defaultMessage='Current Password'
             />
           }
+          tooltip={
+            <FormattedMessage
+              id='pages.account.password.currentPassword.tooltip'
+              defaultMessage='Please enter your current account password to verify your identity.'
+            />
+          }
           rules={[
             {
               required: true,
@@ -167,7 +189,13 @@ const Profile: FC = () => {
           ]}
           hasFeedback
         >
-          <Input.Password prefix={<LockOutlined />} />
+          <Input.Password
+            prefix={<LockOutlined />}
+            placeholder={intl.formatMessage({
+              id: 'pages.account.currentPassword.placeholder',
+              defaultMessage: 'Current Password',
+            })}
+          />
         </Form.Item>
 
         <ProFormText.Password
@@ -539,7 +567,7 @@ const Profile: FC = () => {
             }
             tooltip={
               <FormattedMessage
-                id='pages.account.password.currentPassword.tooltip'
+                id='pages.account.apiKey.currentPassword.tooltip'
                 defaultMessage='Please enter your current account password to verify your identity and generate the API Key.'
               />
             }
@@ -594,8 +622,8 @@ const Profile: FC = () => {
               },
             }}
             placeholder={intl.formatMessage({
-              id: 'pages.account.newPassword.placeholder',
-              defaultMessage: 'New Password',
+              id: 'pages.account.apiKey.currentPassword',
+              defaultMessage: 'Current Password',
             })}
             rules={[
               {

@@ -1,4 +1,7 @@
 export default {
+  'pages.select.unRuleVerification': '数据不完整',
+  'pages.select.nonExistentRef': '数据不存在',
+
   'pages.button.deleteMessage': '您确定要删除此数据吗？',
   'pages.layouts.userLayout.title': '',
   'pages.404.buttonText': '返回首页',
@@ -98,6 +101,7 @@ export default {
   'pages.searchTable.batchDeletion': '批量删除',
   'pages.searchTable.batchApproval': '批量审批',
 
+  'pages.account.userNotFound': '用户未找到',
   'pages.account.profile.nickName': '昵称',
   'pages.account.profile.nickName.tooltip': '您希望被称呼的名字',
   'pages.account.profile.role': '角色',
@@ -126,7 +130,10 @@ export default {
   'pages.account.newPassword.placeholder': '新密码',
   'pages.account.newPassword.validation': '密码无效！',
   'pages.account.newPassword.required': '请输入新密码！',
+  'pages.account.currentPassword.placeholder': '当前密码',
   'pages.account.currentPassword.required': '请输入当前密码！',
+  'pages.account.currentPassword.invalid': '密码错误',
+  'pages.account.password.currentPassword.tooltip': '请输入当前账户密码以验证您的身份',
   'pages.account.confirmNewPassword.required': '请再次输入新密码！',
   'pages.account.passwordsDoNotMatch': '两次输入的密码不一致！',
   'pages.account.newPassword.sameAsOld': '新密码必须与当前密码不同！',
@@ -146,11 +153,17 @@ export default {
   'pages.account.generateAPIKey': '生成 API Key',
   'pages.account.apiKey.viewed': '请确保将其保存到安全的位置。此密钥将不会再次显示。',
   'pages.account.apiKey.generateButton': '生成密钥',
+  'pages.account.apiKey.currentPassword': '当前密码',
   'pages.account.invalidCredentials': '认证信息无效，请检查您的密码。',
   'pages.account.apiKey.generated.success': 'API Key 生成成功！',
   'pages.account.apiKey.generateError': '生成 API Key 时发生系统错误，请稍后重试。',
-  'pages.account.password.currentPassword.tooltip': '请输入当前账户密码以验证您的身份并生成 API Key。',
+  'pages.account.apiKey.currentPassword.tooltip': '请输入当前账户密码以验证您的身份并生成 API Key',
 
+  'pages.account.info.title': '账户信息',
+  'pages.account.profile.userid': '用户ID',
+  'pages.account.view.tooltip': '查看账户',
+  'pages.account.view.button': '查看账户',
+  'pages.account.drawer.title.view': '查看账户信息',
   'pages.login.passwordForgot.tab': '账户',
 
   'pages.team.editsuccess': '修改成功！',

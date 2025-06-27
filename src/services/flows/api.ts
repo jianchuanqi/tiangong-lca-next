@@ -28,13 +28,21 @@ export async function createFlows(id: string, data: any) {
 export async function updateFlows(id: string, version: string, data: any) {
   const newData = genFlowJsonOrdered(id, data);
   const rule_verification = getRuleVerification(schema, newData);
-  const updateResult = await supabase
-    .from('flows')
-    .update({ json_ordered: newData, rule_verification })
-    .eq('id', id)
-    .eq('version', version)
-    .select();
-  return updateResult;
+  let result: any = {};
+  const session = await supabase.auth.getSession();
+  if (session.data.session) {
+    result = await supabase.functions.invoke('update_data', {
+      headers: {
+        Authorization: `Bearer ${session.data.session?.access_token ?? ''}`,
+      },
+      body: { id, version, table: 'flows', data: { json_ordered: newData, rule_verification } },
+      region: FunctionRegion.UsEast1,
+    });
+  }
+  if (result.error) {
+    console.log('error', result.error);
+  }
+  return result?.data;
 }
 
 export async function deleteFlows(id: string, version: string) {
@@ -55,6 +63,7 @@ export async function getFlowTableAll(
     flowType?: string;
     asInput?: boolean;
   },
+  stateCode?: string | number,
 ) {
   const sortBy = Object.keys(sort)[0] ?? 'modified_at';
   const orderBy = sort[sortBy] ?? 'descend';
@@ -117,6 +126,9 @@ export async function getFlowTableAll(
       query = query.eq('team_id', tid);
     }
   } else if (dataSource === 'my') {
+    if (typeof stateCode === 'number') {
+      query = query.eq('state_code', stateCode);
+    }
     const session = await supabase.auth.getSession();
     if (session.data.session) {
       query = query.eq('user_id', session?.data?.session?.user?.id);
@@ -279,19 +291,33 @@ export async function getFlowTablePgroongaSearch(
   dataSource: string,
   queryText: string,
   filter: any,
+  stateCode?: string | number,
 ) {
   let result: any = {};
   const session = await supabase.auth.getSession();
 
   if (session.data.session) {
-    result = await supabase.rpc('pgroonga_search_flows', {
-      query_text: queryText,
-      filter_condition: filter,
-      page_size: params.pageSize ?? 10,
-      page_current: params.current ?? 1,
-      data_source: dataSource,
-      this_user_id: session.data.session.user?.id,
-    });
+    result = await supabase.rpc(
+      'pgroonga_search_flows',
+      typeof stateCode === 'number'
+        ? {
+            query_text: queryText,
+            filter_condition: filter,
+            page_size: params.pageSize ?? 10,
+            page_current: params.current ?? 1,
+            data_source: dataSource,
+            this_user_id: session.data.session.user?.id,
+            state_code: stateCode,
+          }
+        : {
+            query_text: queryText,
+            filter_condition: filter,
+            page_size: params.pageSize ?? 10,
+            page_current: params.current ?? 1,
+            data_source: dataSource,
+            this_user_id: session.data.session.user?.id,
+          },
+    );
   }
   if (result.error) {
     console.log('error', result.error);
@@ -439,6 +465,7 @@ export async function flow_hybrid_search(
   dataSource: string,
   query: string,
   filter: any,
+  stateCode?: string | number,
 ) {
   let result: any = {};
   const session = await supabase.auth.getSession();
@@ -447,7 +474,10 @@ export async function flow_hybrid_search(
       headers: {
         Authorization: `Bearer ${session.data.session?.access_token ?? ''}`,
       },
-      body: { query: query, filter: filter },
+      body:
+        typeof stateCode === 'number'
+          ? { query: query, filter: filter, state_code: stateCode }
+          : { query: query, filter: filter },
       region: FunctionRegion.UsEast1,
     });
   }
@@ -695,4 +725,18 @@ export async function getReferenceProperty(id: string, version: string) {
       success: false,
     });
   }
+}
+export async function getFlowStateCodeByIdsAndVersions(params: { id: string; version: string }[]) {
+  const res = await supabase
+    .from('flows')
+    .select('state_code,id,version')
+    .in(
+      'id',
+      params.map((item) => item.id),
+    )
+    .in(
+      'version',
+      params.map((item) => item.version),
+    );
+  return res;
 }

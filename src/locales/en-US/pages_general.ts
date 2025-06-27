@@ -47,6 +47,7 @@ export default {
   'pages.button.model.save': 'Save data',
   'pages.button.model.result': 'Model result',
   'pages.button.model.process': 'Process information',
+  'pages.button.model.lifecyclemodel': 'Lifecycle model information',
   'pages.button.model.exchange': 'Exchange relation',
   'pages.button.model.connection': 'Connection relation',
   'pages.button.model.delete': 'Delete element',
@@ -79,4 +80,9 @@ export default {
 
   'page.options.savesuccess': 'Save successfully',
   'page.select.unRuleVerification': 'Please complete the data',
+
+  'pages.table.filter.all': 'All',
+  'pages.table.filter.unreviewed': 'Unreviewed',
+  'pages.table.filter.reviewing': 'Reviewing',
+  'pages.table.filter.reviewed': 'Reviewed',
 };

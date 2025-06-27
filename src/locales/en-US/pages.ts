@@ -1,4 +1,7 @@
 export default {
+  'pages.select.unRuleVerification': 'Data is incomplete',
+  'pages.select.nonExistentRef': 'Data does not exist',
+
   'pages.layouts.userLayout.title': '',
   'pages.404.buttonText': 'Back Home',
   'pages.404.subTitle': 'Sorry, the page you visited does not exist.',
@@ -97,6 +100,7 @@ export default {
   'pages.searchTable.batchDeletion': 'batch deletion',
   'pages.searchTable.batchApproval': 'batch approval',
 
+  'pages.account.userNotFound': 'User not found',
   'pages.account.profile.nickName': 'Nickname',
   'pages.account.profile.nickName.tooltip': 'The name you prefer to be called',
   'pages.account.profile.role': 'Role',
@@ -126,7 +130,10 @@ export default {
   'pages.account.newPassword.placeholder': 'New Password',
   'pages.account.newPassword.validation': 'Password is invalid!',
   'pages.account.newPassword.required': 'Please input the new password!',
+  'pages.account.currentPassword.placeholder': 'Current Password',
   'pages.account.currentPassword.required': 'Please input the current password!',
+  'pages.account.currentPassword.invalid': 'Invalid password',
+  'pages.account.password.currentPassword.tooltip': 'Please enter your current account password to verify your identity.',
   'pages.account.confirmNewPassword.required': 'Please input the new password again!',
   'pages.account.passwordsDoNotMatch': 'The two passwords that you entered do not match!',
   'pages.account.newPassword.sameAsOld': 'New password should be different from the current password.',
@@ -146,11 +153,16 @@ export default {
   'pages.account.generateAPIKey': 'Generate API Key',
   'pages.account.apiKey.viewed': 'Make sure to copy it to a secure location. This key will not be shown again.',
   'pages.account.apiKey.generateButton': 'Generate Key',
+  'pages.account.apiKey.currentPassword': 'Current Password',
   'pages.account.invalidCredentials': 'Invalid credentials. Please check your password.',
   'pages.account.apiKey.generated.success': 'API Key generated successfully!',
   'pages.account.apiKey.generateError': 'A system error occurred while generating the API key. Please try again later.',
-  'pages.account.password.currentPassword.tooltip': 'Please enter your current account password to verify your identity and generate the API Key.',
-
+  'pages.account.apiKey.currentPassword.tooltip': 'Please enter your current account password to verify your identity and generate the API Key.',
+  'pages.account.info.title': 'Account Information',
+  'pages.account.profile.userid': 'User ID',
+  'pages.account.view.tooltip': 'View Account',
+  'pages.account.view.button': 'View Account',
+  'pages.account.drawer.title.view': 'View Account Information',
   'pages.login.passwordForgot.tab': 'Account',
 
   // Team Management

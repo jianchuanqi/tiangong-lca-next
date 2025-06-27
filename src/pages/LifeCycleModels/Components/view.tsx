@@ -2,6 +2,7 @@ import { CloseOutlined, ProfileOutlined } from '@ant-design/icons';
 import { ActionType } from '@ant-design/pro-components';
 import { Grid, XFlow, XFlowGraph } from '@antv/xflow';
 import { Button, Drawer, Layout, theme, Tooltip } from 'antd';
+import type { ButtonType } from 'antd/es/button';
 import type { FC } from 'react';
 import { useState } from 'react';
 import { FormattedMessage } from 'umi';
@@ -12,8 +13,18 @@ type Props = {
   buttonType: string;
   lang: string;
   actionRef?: React.MutableRefObject<ActionType | undefined>;
+  buttonTypeProp?: ButtonType;
+  disabled?: boolean;
 };
-const LifeCycleModelView: FC<Props> = ({ id, version, buttonType, lang, actionRef }) => {
+const LifeCycleModelView: FC<Props> = ({
+  id,
+  version,
+  buttonType,
+  lang,
+  actionRef,
+  buttonTypeProp = 'default',
+  disabled = false,
+}) => {
   const [drawerVisible, setDrawerVisible] = useState(false);
   const { token } = theme.useToken();
 
@@ -42,9 +53,34 @@ const LifeCycleModelView: FC<Props> = ({ id, version, buttonType, lang, actionRe
 
   return (
     <>
-      {buttonType === 'icon' ? (
+      {buttonType === 'toolIcon' ? (
+        <Tooltip
+          title={
+            <FormattedMessage
+              id='pages.button.model.lifecyclemodel'
+              defaultMessage='Lifecycle model infomation'
+            ></FormattedMessage>
+          }
+          placement='left'
+        >
+          <Button
+            type='primary'
+            size='small'
+            style={{ boxShadow: 'none' }}
+            icon={<ProfileOutlined />}
+            onClick={onView}
+            disabled={disabled}
+          />
+        </Tooltip>
+      ) : buttonType === 'icon' ? (
         <Tooltip title={<FormattedMessage id='pages.button.view' defaultMessage='View' />}>
-          <Button shape='circle' icon={<ProfileOutlined />} size='small' onClick={onView} />
+          <Button
+            shape='circle'
+            type={buttonTypeProp}
+            icon={<ProfileOutlined />}
+            size='small'
+            onClick={onView}
+          />
         </Tooltip>
       ) : (
         <Button onClick={onView}>

@@ -634,7 +634,24 @@ export function getRuleVerification(schema: any, data: any) {
       }
     }
 
-    if (isEmpty(value)) {
+    const baseProcessInstancePath =
+      'lifeCycleModelDataSet.lifeCycleModelInformation.technology.processes.processInstance';
+    if (path.includes(`${baseProcessInstancePath}.0.connections`)) {
+      if (!value) {
+        let instance = getValueByPath(data, `${baseProcessInstancePath}`);
+        if (instance) {
+          value = (Array.isArray(instance) ? instance : [instance]).find(
+            (item: any) => item.connections,
+          );
+        }
+      }
+    }
+
+    if (
+      isEmpty(value) &&
+      !path.includes('modellingAndValidation.validation.review') &&
+      !path.includes('modellingAndValidation.complianceDeclarations.compliance')
+    ) {
       result.valid = false;
       result.errors.push({
         path,
