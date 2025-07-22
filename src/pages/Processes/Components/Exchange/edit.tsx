@@ -7,20 +7,7 @@ import { getRules } from '@/pages/Utils';
 import styles from '@/style/custom.less';
 import { CloseOutlined, FormOutlined } from '@ant-design/icons';
 import { ProForm, ProFormInstance } from '@ant-design/pro-components';
-import {
-  Button,
-  Card,
-  Collapse,
-  Divider,
-  Drawer,
-  Form,
-  Input,
-  Select,
-  Space,
-  Switch,
-  Tooltip,
-  Typography,
-} from 'antd';
+import { Button, Card, Divider, Drawer, Form, Input, Select, Space, Switch, Tooltip } from 'antd';
 import type { FC } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormattedMessage } from 'umi';
@@ -116,6 +103,7 @@ const ProcessExchangeEdit: FC<Props> = ({
       />
       <Drawer
         getContainer={() => document.body}
+        destroyOnClose={true}
         title={
           <FormattedMessage
             id='pages.process.exchange.drawer.title.edit'
@@ -520,19 +508,6 @@ const ProcessExchangeEdit: FC<Props> = ({
             </Card>
           </Space>
         </ProForm>
-        <Collapse
-          items={[
-            {
-              key: '1',
-              label: 'JSON Data',
-              children: (
-                <Typography>
-                  <pre>{JSON.stringify(fromData, null, 2)}</pre>
-                </Typography>
-              ),
-            },
-          ]}
-        />
       </Drawer>
     </>
   );

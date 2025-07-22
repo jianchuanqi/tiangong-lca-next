@@ -1,3 +1,4 @@
+import { toSuperscript } from '@/components/AlignedNumber';
 import RequiredSelectFormTitle from '@/components/RequiredSelectFormTitle';
 import { RefCheckType, useRefCheckContext } from '@/contexts/refCheckContext';
 import { useUpdateReferenceContext } from '@/contexts/updateReferenceContext';
@@ -9,10 +10,11 @@ import { genUnitGroupFromData } from '@/services/unitgroups/util';
 import { ProFormInstance } from '@ant-design/pro-components';
 import { Button, Card, Col, Divider, Form, Input, Row, Space, theme } from 'antd';
 import React, { FC, ReactNode, useEffect, useState } from 'react';
-import { FormattedMessage } from 'umi';
+import { FormattedMessage, useModel } from 'umi';
 import UnitgroupsEdit from '../edit';
 import UnitgroupsView from '../view';
 import UnitgroupsSelectDrawer from './drawer';
+
 const { TextArea } = Input;
 
 type Props = {
@@ -34,12 +36,13 @@ const UnitgroupsSelectFrom: FC<Props> = ({ name, label, lang, formRef, onData, r
   const [refData, setRefData] = useState<any>(null);
   const [errRef, setErrRef] = useState<RefCheckType | null>(null);
   const refCheckContext = useRefCheckContext();
+  const { initialState } = useModel('@@initialState');
   const updateErrRefByDetail = (data: any) => {
     if (
       data?.ruleVerification === false &&
       data?.stateCode !== 100 &&
       data?.stateCode !== 200 &&
-      refCheckContext?.refCheckData?.length
+      rules?.length
     ) {
       setErrRef({
         id: data?.id,
@@ -47,6 +50,8 @@ const UnitgroupsSelectFrom: FC<Props> = ({ name, label, lang, formRef, onData, r
         ruleVerification: data?.ruleVerification,
         nonExistent: false,
       });
+    } else {
+      setErrRef(null);
     }
   };
   useEffect(() => {
@@ -56,20 +61,25 @@ const UnitgroupsSelectFrom: FC<Props> = ({ name, label, lang, formRef, onData, r
         setDataUserId(result?.data?.userId);
         updateErrRefByDetail(result?.data);
       });
-      if (refCheckContext?.refCheckData?.length) {
-        const ref = refCheckContext?.refCheckData?.find(
-          (item: any) => item.id === id && item.version === version,
-        );
-        if (ref) {
-          setErrRef(ref);
-        } else {
-          setErrRef(null);
-        }
-      } else {
+    }
+  }, [id, version]);
+
+  useEffect(() => {
+    if (refCheckContext?.refCheckData?.length) {
+      const ref = refCheckContext?.refCheckData?.find(
+        (item: any) =>
+          (item.id === id && item.version === version) ||
+          (item.id === refData?.id && item.version === refData?.version),
+      );
+      if (ref) {
+        setErrRef(ref);
+      } else if (refData && refData?.id !== errRef?.id) {
         setErrRef(null);
       }
+    } else {
+      setErrRef(null);
     }
-  }, [id, version, refCheckContext]);
+  }, [refCheckContext, refData]);
 
   const handletUnitgroupsData = (rowId: string, rowVersion: string) => {
     getUnitGroupDetail(rowId, rowVersion).then(async (result: any) => {
@@ -92,7 +102,7 @@ const UnitgroupsSelectFrom: FC<Props> = ({ name, label, lang, formRef, onData, r
         'common:shortDescription':
           selectedData?.unitGroupInformation?.dataSetInformation?.['common:name'] ?? [],
         refUnit: {
-          name: refUnit?.name ?? '',
+          name: toSuperscript(refUnit?.name ?? ''),
           generalComment: refUnit?.generalComment ?? [],
         },
       });
@@ -118,7 +128,7 @@ const UnitgroupsSelectFrom: FC<Props> = ({ name, label, lang, formRef, onData, r
         formRef.current?.getFieldValue([...name, '@version']),
       ).then((res: any) => {
         formRef.current?.setFieldValue([...name, 'refUnit'], {
-          name: res?.data?.refUnitName ?? '',
+          name: toSuperscript(res?.data?.refUnitName ?? ''),
           generalComment: res?.data?.refUnitGeneralComment ?? [],
         });
       });
@@ -212,7 +222,7 @@ const UnitgroupsSelectFrom: FC<Props> = ({ name, label, lang, formRef, onData, r
             </Button>
           )}
           {id && <UnitgroupsView lang={lang} id={id} version={version ?? ''} buttonType='text' />}
-          {id && dataUserId === sessionStorage.getItem('userId') && (
+          {id && dataUserId === initialState?.currentUser?.userid && (
             <UnitgroupsEdit
               lang={lang}
               id={id}

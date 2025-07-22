@@ -4,37 +4,28 @@ import type { refDataType } from '@/pages/Utils/review';
 import {
   ReffPath,
   checkReferences,
-  checkRequiredFields,
   dealProcress,
   getAllRefObj,
+  getErrRefTab,
   updateReviewsAfterCheckData,
   updateUnReviewToUnderReview,
 } from '@/pages/Utils/review';
 import { getFlowDetail } from '@/services/flows/api';
 import { genFlowFromData, genFlowNameJson } from '@/services/flows/util';
+import { getRuleVerification } from '@/services/general/util';
+import { LCIAResultTable } from '@/services/lciaMethods/data';
 import { getProcessDetail, updateProcess } from '@/services/processes/api';
-import { genProcessFromData } from '@/services/processes/util';
+import { genProcessFromData, genProcessJsonOrdered } from '@/services/processes/util';
 import { getUserTeamId } from '@/services/roles/api';
 import styles from '@/style/custom.less';
 import { CloseOutlined, FormOutlined, ProductOutlined } from '@ant-design/icons';
 import { ActionType, ProForm, ProFormInstance } from '@ant-design/pro-components';
-import {
-  Button,
-  Collapse,
-  Drawer,
-  Form,
-  Input,
-  Space,
-  Spin,
-  Tooltip,
-  Typography,
-  message,
-} from 'antd';
+import { Button, Drawer, Form, Input, Space, Spin, Tooltip, message } from 'antd';
 import type { FC } from 'react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { FormattedMessage, useIntl } from 'umi';
 import { v4 } from 'uuid';
-import requiredFields from '../requiredFields';
+import schema from '../processes_schema.json';
 import { ProcessForm } from './form';
 
 type Props = {
@@ -72,6 +63,14 @@ const ProcessEdit: FC<Props> = ({
   const intl = useIntl();
   const [referenceValue, setReferenceValue] = useState(0);
   const [refCheckData, setRefCheckData] = useState<any[]>([]);
+  const [refCheckContextValue, setRefCheckContextValue] = useState<any>({
+    refCheckData: [],
+  });
+  useEffect(() => {
+    setRefCheckContextValue({
+      refCheckData: [...refCheckData],
+    });
+  }, [refCheckData]);
 
   const handletFromData = async () => {
     if (fromData?.id) {
@@ -146,119 +145,6 @@ const ProcessEdit: FC<Props> = ({
     setExchangeDataSource(newExchangeDataSource);
     setReferenceValue(referenceValue + 1);
   };
-
-  const handleCheckData = async (processDetail: any) => {
-    setSpinning(true);
-    setShowRules(true);
-    let { checkResult, tabName } = checkRequiredFields(requiredFields, fromData);
-    if (!checkResult) {
-      await setActiveTabKey(tabName);
-      setTimeout(() => {
-        formRefEdit.current?.validateFields();
-      }, 200);
-    } else {
-      const exchanges = fromData?.exchanges;
-      if (!exchanges || !exchanges?.exchange || exchanges?.exchange?.length === 0) {
-        message.error(
-          intl.formatMessage({
-            id: 'pages.process.validator.exchanges.required',
-            defaultMessage: 'Please select exchanges',
-          }),
-        );
-        checkResult = false;
-        await setActiveTabKey('exchanges');
-      } else if (
-        exchanges?.exchange.filter((item: any) => item?.quantitativeReference).length !== 1
-      ) {
-        message.error(
-          intl.formatMessage({
-            id: 'pages.process.validator.exchanges.quantitativeReference.required',
-            defaultMessage: 'Exchange needs to have exactly one quantitative reference open',
-          }),
-        );
-        checkResult = false;
-        await setActiveTabKey('exchanges');
-      }
-    }
-
-    const unReview: any[] = []; // stateCode < 20
-    const underReview: any[] = []; // stateCode >= 20 && stateCode < 100
-    const unRuleVerification: any[] = [];
-    const nonExistentRef: any[] = [];
-
-    dealProcress(processDetail, unReview, underReview, unRuleVerification, nonExistentRef);
-
-    const userTeamId = await getUserTeamId();
-    const refObjs = getAllRefObj(processDetail);
-
-    const path = await checkReferences(
-      refObjs,
-      new Map<string, any>(),
-      userTeamId,
-      unReview,
-      underReview,
-      unRuleVerification,
-      nonExistentRef,
-      new ReffPath(
-        {
-          '@refObjectId': id,
-          '@version': version,
-          '@type': 'process data set',
-        },
-        processDetail?.ruleVerification,
-        false,
-      ),
-    );
-
-    const problemNodes = path?.findProblemNodes();
-
-    if (problemNodes && problemNodes.length > 0) {
-      let result = problemNodes.map((item: any) => {
-        return {
-          id: item['@refObjectId'],
-          version: item['@version'],
-          ruleVerification: item.ruleVerification,
-          nonExistent: item.nonExistent,
-        };
-      });
-      setRefCheckData(result);
-    } else {
-      setRefCheckData([]);
-    }
-
-    // setNonExistentRefData(nonExistentRef);
-    // setUnRuleVerificationData(unRuleVerification);
-    if (
-      (nonExistentRef && nonExistentRef.length > 0) ||
-      (unRuleVerification && unRuleVerification.length > 0) ||
-      (underReview && underReview.length > 0)
-    ) {
-      if (underReview && underReview.length > 0) {
-        message.error(
-          intl.formatMessage({
-            id: 'pages.process.review.error',
-            defaultMessage: 'Referenced data is under review, cannot initiate another review',
-          }),
-        );
-      }
-      setSpinning(false);
-      return { checkResult: false, unReview };
-    }
-
-    if (processDetail.stateCode >= 20) {
-      message.error(
-        intl.formatMessage({
-          id: 'pages.process.review.submitError',
-          defaultMessage: 'Submit review failed',
-        }),
-      );
-      setSpinning(false);
-      return { checkResult: false, unReview };
-    }
-    setSpinning(false);
-    return { checkResult, unReview };
-  };
-
   const handleSubmit = async (closeDrawer: boolean) => {
     if (closeDrawer) setSpinning(true);
     const updateResult = await updateProcess(id, version, {
@@ -299,15 +185,206 @@ const ProcessEdit: FC<Props> = ({
         actionRef?.current?.reload();
       }
     } else {
-      setSpinning(false);
-      message.error(updateResult?.error?.message);
+      if (updateResult?.error?.state_code === 100) {
+        message.error(
+          intl.formatMessage({
+            id: 'pages.review.openData',
+            defaultMessage: 'This data is open data, save failed',
+          }),
+        );
+      } else if (updateResult?.error?.state_code === 20) {
+        message.error(
+          intl.formatMessage({
+            id: 'pages.review.underReview',
+            defaultMessage: 'Data is under review, save failed',
+          }),
+        );
+      } else {
+        message.error(updateResult?.error?.message);
+      }
+      if (closeDrawer) setSpinning(false);
+    }
+    if (!closeDrawer) {
+      return updateResult;
     }
     return true;
   };
 
+  const handleCheckData = async (processDetail: any) => {
+    setSpinning(true);
+    setShowRules(true);
+    let { valid, errors } = getRuleVerification(schema, genProcessJsonOrdered(id, processDetail));
+    if (!valid) {
+      setTimeout(() => {
+        formRefEdit.current?.validateFields();
+      }, 200);
+    } else {
+      const exchanges = fromData?.exchanges;
+      if (!exchanges || !exchanges?.exchange || exchanges?.exchange?.length === 0) {
+        message.error(
+          intl.formatMessage({
+            id: 'pages.process.validator.exchanges.required',
+            defaultMessage: 'Please select exchanges',
+          }),
+        );
+        valid = false;
+        await setActiveTabKey('exchanges');
+      } else if (
+        exchanges?.exchange.filter((item: any) => item?.quantitativeReference).length !== 1
+      ) {
+        message.error(
+          intl.formatMessage({
+            id: 'pages.process.validator.exchanges.quantitativeReference.required',
+            defaultMessage: 'Exchange needs to have exactly one quantitative reference open',
+          }),
+        );
+        valid = false;
+        await setActiveTabKey('exchanges');
+      }
+    }
+
+    const unReview: any[] = []; // stateCode < 20
+    const underReview: any[] = []; // stateCode >= 20 && stateCode < 100
+    const unRuleVerification: any[] = [];
+    const nonExistentRef: any[] = [];
+
+    dealProcress(processDetail, unReview, underReview, unRuleVerification, nonExistentRef);
+
+    const userTeamId = await getUserTeamId();
+    const refObjs = getAllRefObj(processDetail);
+
+    const path = await checkReferences(
+      refObjs,
+      new Map<string, any>(),
+      userTeamId,
+      unReview,
+      underReview,
+      unRuleVerification,
+      nonExistentRef,
+      new ReffPath(
+        {
+          '@refObjectId': id,
+          '@version': version,
+          '@type': 'process data set',
+        },
+        processDetail?.ruleVerification,
+        false,
+      ),
+    );
+
+    const problemNodes = path?.findProblemNodes() ?? [];
+
+    if (problemNodes && problemNodes.length > 0) {
+      let result = problemNodes.map((item: any) => {
+        return {
+          id: item['@refObjectId'],
+          version: item['@version'],
+          ruleVerification: item.ruleVerification,
+          nonExistent: item.nonExistent,
+        };
+      });
+      setRefCheckData(result);
+    } else {
+      setRefCheckData([]);
+    }
+
+    // setNonExistentRefData(nonExistentRef);
+    // setUnRuleVerificationData(unRuleVerification);
+    if (
+      (nonExistentRef && nonExistentRef.length > 0) ||
+      (unRuleVerification && unRuleVerification.length > 0) ||
+      (underReview && underReview.length > 0)
+    ) {
+      valid = false;
+      setSpinning(false);
+      if (underReview && underReview.length > 0) {
+        message.error(
+          intl.formatMessage({
+            id: 'pages.process.review.error',
+            defaultMessage: 'Referenced data is under review, cannot initiate another review',
+          }),
+        );
+        return { checkResult: valid, unReview };
+      }
+    }
+
+    if (processDetail.stateCode >= 20) {
+      message.error(
+        intl.formatMessage({
+          id: 'pages.process.review.submitError',
+          defaultMessage: 'Submit review failed',
+        }),
+      );
+      setSpinning(false);
+      valid = false;
+      // return { checkResult, unReview };
+    }
+    if (
+      valid &&
+      nonExistentRef?.length === 0 &&
+      unRuleVerification.length === 0 &&
+      problemNodes.length === 0
+    ) {
+      message.success(
+        intl.formatMessage({
+          id: 'pages.button.check.success',
+          defaultMessage: 'Data check successfully!',
+        }),
+      );
+      setSpinning(false);
+    } else {
+      const errTabNames: string[] = [];
+      errors.forEach((err: any) => {
+        const tabName = err?.path?.split('.')[1];
+        if (tabName && !errTabNames.includes(tabName)) errTabNames.push(tabName);
+      });
+      nonExistentRef.forEach((item: any) => {
+        const tabName = getErrRefTab(item, processDetail);
+        if (tabName && !errTabNames.includes(tabName)) errTabNames.push(tabName);
+      });
+      unRuleVerification.forEach((item: any) => {
+        const tabName = getErrRefTab(item, processDetail);
+        if (tabName && !errTabNames.includes(tabName)) errTabNames.push(tabName);
+      });
+      problemNodes.forEach((item: any) => {
+        const tabName = getErrRefTab(item, processDetail);
+        if (tabName && !errTabNames.includes(tabName)) errTabNames.push(tabName);
+      });
+      if (errTabNames && errTabNames.length > 0) {
+        message.error(
+          errTabNames
+            .map((tab: any) =>
+              intl.formatMessage({
+                id: `pages.process.view.${tab}`,
+                defaultMessage: tab,
+              }),
+            )
+            .join('，') +
+            '：' +
+            intl.formatMessage({
+              id: 'pages.button.check.error',
+              defaultMessage: 'Data check failed!',
+            }),
+        );
+      } else {
+        message.error(
+          intl.formatMessage({
+            id: 'pages.button.check.error',
+            defaultMessage: 'Data check failed!',
+          }),
+        );
+      }
+
+      setSpinning(false);
+      return { checkResult: valid, unReview };
+    }
+    setSpinning(false);
+    return { checkResult: valid, unReview };
+  };
+
   const submitReview = async () => {
     setSpinning(true);
-    await handleSubmit(false);
+    const updateResult = await handleSubmit(false);
     const { data: processDetail } = await getProcessDetail(id, version);
     if (!processDetail) {
       message.error(
@@ -319,7 +396,17 @@ const ProcessEdit: FC<Props> = ({
       setSpinning(false);
       return;
     }
-    const { checkResult, unReview } = await handleCheckData(processDetail);
+    if (!updateResult.data) {
+      setSpinning(false);
+      return;
+    }
+    const { checkResult, unReview } = await handleCheckData({
+      id: updateResult.data[0]?.id,
+      version: updateResult.data[0]?.version,
+      ...genProcessFromData(updateResult.data[0]?.json?.processDataSet),
+      ruleVerification: updateResult.data[0]?.rule_verification,
+      stateCode: updateResult.data[0]?.state_code,
+    });
 
     if (checkResult) {
       setSpinning(true);
@@ -387,6 +474,7 @@ const ProcessEdit: FC<Props> = ({
   useEffect(() => {
     if (!drawerVisible) {
       setShowRules(false);
+      setRefCheckData([]);
       // setUnRuleVerificationData([]);
       // setNonExistentRefData([]);
       return;
@@ -402,6 +490,19 @@ const ProcessEdit: FC<Props> = ({
       },
     });
   }, [exchangeDataSource]);
+
+  const handleLciaResults = (result: LCIAResultTable[]) => {
+    setFromData({
+      ...fromData,
+      LCIAResults: {
+        LCIAResult: result.map((item) => ({
+          key: item.key,
+          referenceToLCIAMethodDataSet: item.referenceToLCIAMethodDataSet,
+          meanAmount: item.meanAmount,
+        })),
+      },
+    });
+  };
 
   return (
     <>
@@ -451,6 +552,7 @@ const ProcessEdit: FC<Props> = ({
       )}
       <Drawer
         getContainer={() => document.body}
+        destroyOnClose={true}
         title={
           <FormattedMessage
             id={'pages.process.drawer.title.edit'}
@@ -471,7 +573,24 @@ const ProcessEdit: FC<Props> = ({
         onClose={() => setDrawerVisible(false)}
         footer={
           <Space size={'middle'} className={styles.footer_right}>
-            <Button onClick={() => handleCheckData(initData)}>
+            <Button
+              onClick={async () => {
+                setSpinning(true);
+                const updateResult = await handleSubmit(false);
+                if (updateResult.error) {
+                  setSpinning(false);
+                  return;
+                }
+
+                await handleCheckData({
+                  id: updateResult.data[0]?.id,
+                  version: updateResult.data[0]?.version,
+                  ...genProcessFromData(updateResult.data[0]?.json?.processDataSet),
+                  ruleVerification: updateResult.data[0]?.rule_verification,
+                  stateCode: updateResult.data[0]?.state_code,
+                });
+              }}
+            >
               <FormattedMessage id='pages.button.check' defaultMessage='Data check' />
             </Button>
             <>
@@ -517,11 +636,7 @@ const ProcessEdit: FC<Props> = ({
       >
         <Spin spinning={spinning}>
           <UpdateReferenceContext.Provider value={{ referenceValue }}>
-            <RefCheckContext.Provider
-              value={{
-                refCheckData: [...refCheckData],
-              }}
-            >
+            <RefCheckContext.Provider value={refCheckContextValue}>
               <ProForm
                 formRef={formRefEdit}
                 initialValues={initData}
@@ -568,6 +683,8 @@ const ProcessEdit: FC<Props> = ({
                   onTabChange={onTabChange}
                   exchangeDataSource={exchangeDataSource}
                   showRules={showRules}
+                  lciaResults={fromData?.LCIAResults?.LCIAResult ?? []}
+                  onLciaResults={handleLciaResults}
                 />
                 <Form.Item name='id' hidden>
                   <Input />
@@ -575,30 +692,6 @@ const ProcessEdit: FC<Props> = ({
               </ProForm>
             </RefCheckContext.Provider>
           </UpdateReferenceContext.Provider>
-          <Collapse
-            items={[
-              {
-                key: '1',
-                label: 'JSON Data',
-                children: (
-                  <Typography>
-                    <pre>{JSON.stringify(fromData, null, 2)}</pre>
-                    <pre>
-                      {JSON.stringify(
-                        {
-                          exchanges: {
-                            exchange: [...exchangeDataSource],
-                          },
-                        },
-                        null,
-                        2,
-                      )}
-                    </pre>
-                  </Typography>
-                ),
-              },
-            ]}
-          />
         </Spin>
       </Drawer>
     </>

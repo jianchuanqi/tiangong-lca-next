@@ -2,8 +2,78 @@ import { getRefData, getReviewsOfData, updateDateToReviewState } from '@/service
 import { getLifeCycleModelDetail } from '@/services/lifeCycleModels/api';
 import { addReviewsApi } from '@/services/reviews/api';
 import { getTeamMessageApi } from '@/services/teams/api';
-import { getUsersByIds } from '@/services/users/api';
-import { get } from 'lodash';
+import { getUserId, getUsersByIds } from '@/services/users/api';
+
+export class ConcurrencyController {
+  private maxConcurrency: number;
+  private running: number = 0;
+  private queue: (() => Promise<any>)[] = [];
+
+  constructor(maxConcurrency: number = 5) {
+    this.maxConcurrency = maxConcurrency;
+  }
+
+  async add<T>(task: () => Promise<T>): Promise<T> {
+    let outerResolve: (value: T | PromiseLike<T>) => void = () => {};
+    let outerReject: (reason?: any) => void = () => {};
+
+    const promise = new Promise<T>((resolve, reject) => {
+      outerResolve = resolve;
+      outerReject = reject;
+    });
+
+    const wrappedTask = async () => {
+      try {
+        const result = await task();
+        outerResolve(result);
+      } catch (error) {
+        outerReject(error);
+      } finally {
+        this.running--;
+        this.processQueue();
+      }
+    };
+    this.queue.push(wrappedTask);
+    this.processQueue();
+    return promise;
+  }
+
+  private processQueue() {
+    while (this.running < this.maxConcurrency && this.queue.length > 0) {
+      const task = this.queue.shift();
+      if (task) {
+        this.running++;
+        task();
+      }
+    }
+  }
+
+  async waitForAll(): Promise<void> {
+    while (this.running > 0 || this.queue.length > 0) {
+      await new Promise<void>((resolve) => {
+        setTimeout(() => resolve(), 10);
+      });
+    }
+  }
+}
+
+function get(obj: any, path: string, defaultValue?: any): any {
+  if (!obj || typeof obj !== 'object') {
+    return defaultValue;
+  }
+
+  const keys = path.split('.');
+  let result = obj;
+
+  for (const key of keys) {
+    if (result === null || result === undefined || typeof result !== 'object' || !(key in result)) {
+      return defaultValue;
+    }
+    result = result[key];
+  }
+
+  return result;
+}
 
 export type refDataType = {
   '@type': string;
@@ -35,12 +105,25 @@ export const getRefTableName = (type: string) => {
 
 export const getAllRefObj = (obj: any): any[] => {
   const result: any[] = [];
+  const visited = new WeakSet();
 
   const traverse = (current: any) => {
     if (!current || typeof current !== 'object') return;
 
-    if ('@refObjectId' in current && current['@refObjectId'] && current['@version']) {
-      result.push(current);
+    // Prevent circular references
+    if (visited.has(current)) return;
+    visited.add(current);
+
+    if (
+      '@refObjectId' in current &&
+      current['@refObjectId'] &&
+      current['@version'] &&
+      current['@type']
+    ) {
+      const tableName = getRefTableName(current['@type']);
+      if (tableName !== undefined) {
+        result.push(current);
+      }
     }
 
     if (Array.isArray(current)) {
@@ -189,8 +272,10 @@ export const checkReferences = async (
   unRuleVerification: refDataType[],
   nonExistentRef: refDataType[],
   parentPath?: ReffPath,
+  requestKeysSet?: Set<string>,
 ): Promise<ReffPath | undefined> => {
   let currentPath: ReffPath | undefined;
+  const requestKeys = requestKeysSet || new Set<string>();
   const handelSameModelWithProcress = async (ref: refDataType) => {
     if (ref['@type'] === 'process data set') {
       const { data: sameModelWithProcress, success } = await getLifeCycleModelDetail(
@@ -214,7 +299,7 @@ export const checkReferences = async (
     }
   };
 
-  for (const ref of refs) {
+  const processRef = async (ref: any) => {
     if (refMaps.has(`${ref['@refObjectId']}:${ref['@version']}:${ref['@type']}`)) {
       const refData = refMaps.get(`${ref['@refObjectId']}:${ref['@version']}:${ref['@type']}`);
 
@@ -225,7 +310,7 @@ export const checkReferences = async (
         }
       }
       await handelSameModelWithProcress(ref);
-      continue;
+      return;
     }
     const refResult = await getRefData(
       ref['@refObjectId'],
@@ -290,6 +375,7 @@ export const checkReferences = async (
           unRuleVerification,
           nonExistentRef,
           currentPath,
+          requestKeys,
         );
       }
       await handelSameModelWithProcress(ref);
@@ -308,7 +394,18 @@ export const checkReferences = async (
         nonExistentRef.push(ref);
       }
     }
+  };
+
+  const controller = new ConcurrencyController(5);
+  for (const ref of refs) {
+    const key = `${ref['@refObjectId']}:${ref['@version']}:${ref['@type']}`;
+    if (!requestKeys.has(key)) {
+      requestKeys.add(key);
+      controller.add(() => processRef(ref));
+    }
   }
+
+  await controller.waitForAll();
   return parentPath;
 };
 
@@ -316,6 +413,7 @@ export const checkData = async (
   data: refDataType,
   unRuleVerification: refDataType[],
   nonExistentRef: refDataType[],
+  pathRef: ReffPath,
 ) => {
   const { data: detail } = await getRefData(
     data['@refObjectId'],
@@ -332,13 +430,15 @@ export const checkData = async (
       [],
       unRuleVerification,
       nonExistentRef,
+      pathRef,
     );
   }
 };
 
 export const updateReviewsAfterCheckData = async (teamId: string, data: any, reviewId: string) => {
   const team = await getTeamMessageApi(teamId);
-  const user = await getUsersByIds([sessionStorage.getItem('userId') ?? '']);
+  const userId = await getUserId();
+  const user = await getUsersByIds([userId]);
   const reviewJson = {
     data,
     team: {
@@ -346,7 +446,7 @@ export const updateReviewsAfterCheckData = async (teamId: string, data: any, rev
       name: team?.data?.[0]?.json?.title,
     },
     user: {
-      id: sessionStorage.getItem('userId'),
+      id: userId,
       name: user?.[0]?.display_name,
       email: user?.[0]?.email,
     },
@@ -359,29 +459,48 @@ export const updateReviewsAfterCheckData = async (teamId: string, data: any, rev
 };
 
 export const updateUnReviewToUnderReview = async (unReview: refDataType[], reviewId: string) => {
+  const controller = new ConcurrencyController(5);
+  const results: any[] = [];
+
+  const processItem = async (item: refDataType) => {
+    try {
+      const oldReviews = await getReviewsOfData(
+        item['@refObjectId'],
+        item['@version'],
+        getRefTableName(item['@type']),
+      );
+      const updateData = {
+        state_code: 20,
+        reviews: [
+          ...oldReviews,
+          {
+            key: oldReviews?.length,
+            id: reviewId,
+          },
+        ],
+      };
+      const result = await updateDateToReviewState(
+        item['@refObjectId'],
+        item['@version'],
+        getRefTableName(item['@type']),
+        updateData,
+      );
+      return { success: true, result, item };
+    } catch (error) {
+      return { success: false, error, item };
+    }
+  };
+
   for (const item of unReview) {
-    const oldReviews = await getReviewsOfData(
-      item['@refObjectId'],
-      item['@version'],
-      getRefTableName(item['@type']),
-    );
-    const updateData = {
-      state_code: 20,
-      reviews: [
-        ...oldReviews,
-        {
-          key: oldReviews?.length,
-          id: reviewId,
-        },
-      ],
-    };
-    await updateDateToReviewState(
-      item['@refObjectId'],
-      item['@version'],
-      getRefTableName(item['@type']),
-      updateData,
-    );
+    controller.add(async () => {
+      const result = await processItem(item);
+      results.push(result);
+      return result;
+    });
   }
+
+  await controller.waitForAll();
+  return results;
 };
 
 const checkValidationFields = (data: any) => {
@@ -432,50 +551,115 @@ const checkComplianceFields = (data: any) => {
 };
 
 export const checkRequiredFields = (requiredFields: any, formData: any) => {
+  const errTabNames: string[] = [];
+  const collectedTabNames = new Set<string>();
+
   if (!formData || Object.keys(formData).length === 0) {
-    return { checkResult: false, tabName: '' };
+    return { checkResult: false, errTabNames };
   }
+  const collectErrTabNames = (tabName: string) => {
+    if (tabName && tabName?.length && !collectedTabNames.has(tabName)) {
+      errTabNames.push(tabName);
+      collectedTabNames.add(tabName);
+    }
+  };
   for (let field of Object.keys(requiredFields)) {
     const value = get(formData, field);
     if (field === 'modellingAndValidation.validation.review') {
       const { checkResult, tabName } = checkValidationFields(value);
       if (!checkResult) {
-        return { checkResult, tabName };
+        collectErrTabNames(tabName ?? '');
+        // return { checkResult, tabName };
       }
     }
 
     if (field === 'modellingAndValidation.complianceDeclarations.compliance') {
       const { checkResult, tabName } = checkComplianceFields(value);
       if (!checkResult) {
-        return { checkResult, tabName };
+        collectErrTabNames(tabName ?? '');
+        // return { checkResult, tabName };
       }
     }
 
     if (field.includes('common:classification.common:class')) {
       if (!value || (value?.id ?? []).some((item: any) => !item)) {
-        return { checkResult: false, tabName: requiredFields[field] };
+        collectErrTabNames(requiredFields[field] ?? '');
+        // return { checkResult: false, tabName: requiredFields[field] };
       }
     }
     if (!value) {
-      return { checkResult: false, tabName: requiredFields[field] };
+      collectErrTabNames(requiredFields[field] ?? '');
+      // return { checkResult: false, tabName: requiredFields[field] };
     }
 
     if (Array.isArray(value) && (value.length === 0 || value.every((item) => !item))) {
-      return { checkResult: false, tabName: requiredFields[field] };
+      collectErrTabNames(requiredFields[field] ?? '');
+      // return { checkResult: false, tabName: requiredFields[field] };
     }
 
     if (typeof value === 'object' && value !== null && !Array.isArray(value)) {
       if (Object.keys(value).length === 0) {
-        return { checkResult: false, tabName: requiredFields[field] };
+        collectErrTabNames(requiredFields[field] ?? '');
+        // return { checkResult: false, tabName: requiredFields[field] };
       }
       const allPropsEmpty = Object.values(value).every(
         (propValue) => propValue === undefined || propValue === null,
       );
       if (allPropsEmpty) {
-        return { checkResult: false, tabName: requiredFields[field] };
+        collectErrTabNames(requiredFields[field] ?? '');
+        // return { checkResult: false, tabName: requiredFields[field] };
       }
     }
   }
 
-  return { checkResult: true, tabName: null };
+  return { checkResult: errTabNames.length === 0, errTabNames };
 };
+
+export function getErrRefTab(ref: refDataType, data: any): string | null {
+  if (!data || !ref) {
+    return null;
+  }
+
+  const visited = new WeakSet();
+
+  const findRefInObject = (obj: any, path: string[] = []): string | null => {
+    if (!obj || typeof obj !== 'object') {
+      return null;
+    }
+
+    if (visited.has(obj)) {
+      return null;
+    }
+    visited.add(obj);
+
+    if (obj['@refObjectId'] && obj['@version'] && obj['@type']) {
+      if (obj['@refObjectId'] === ref['@refObjectId'] && obj['@version'] === ref['@version']) {
+        return path[0] || null;
+      }
+    }
+
+    for (const key in obj) {
+      if (obj.hasOwnProperty(key)) {
+        const value = obj[key];
+
+        if (Array.isArray(value)) {
+          for (let i = 0; i < value.length; i++) {
+            const result = findRefInObject(value[i], [...path, key]);
+            if (result) {
+              return result;
+            }
+          }
+        } else if (typeof value === 'object' && value !== null) {
+          const result = findRefInObject(value, [...path, key]);
+          if (result) {
+            return result;
+          }
+        }
+      }
+    }
+
+    return null;
+  };
+
+  return findRefInObject(data);
+}

@@ -31,6 +31,7 @@ import { Button, message, Space, Spin, theme, Tooltip } from 'antd';
 import { FC, useCallback, useEffect, useRef, useState } from 'react';
 import { FormattedMessage, useIntl } from 'umi';
 import { v4 } from 'uuid';
+import ConnectableProcesses from '../connectableProcesses';
 import LifeCycleModelEdit from '../edit';
 import LifeCycleModelView from '../view';
 import ModelToolbarAdd from './add';
@@ -80,6 +81,9 @@ const ToolbarEdit: FC<Props> = ({
   const [ioPortSelectorDirection, setIoPortSelectorDirection] = useState('');
   const [ioPortSelectorNode, setIoPortSelectorNode] = useState<any>({});
   const [ioPortSelectorDrawerVisible, setIoPortSelectorDrawerVisible] = useState(false);
+  const [connectableProcessesDrawerVisible, setConnectableProcessesDrawerVisible] = useState(false);
+  const [connectableProcessesPortId, setConnectableProcessesPortId] = useState<any>('');
+  const [connectableProcessesFlowVersion, setConnectableProcessesFlowVersion] = useState<any>('');
 
   const modelData = useGraphStore((state) => state.initData);
   const addNodes = useGraphStore((state) => state.addNodes);
@@ -519,19 +523,21 @@ const ToolbarEdit: FC<Props> = ({
       if (lang === 'zh') {
         labelSub = label?.substring(0, nodeWidth / 12 - 4);
       }
-
       return {
         id: direction + ':' + flowUUID,
         args: { x: group === 'groupOutput' ? '100%' : 0, y: baseY + index * 20 },
         attrs: {
           text: {
-            text: label !== labelSub ? labelSub + '...' : label,
+            text: `${label !== labelSub ? labelSub + '...' : label}`,
             title: labelSub,
+            cursor: 'pointer',
           },
         },
         group: group,
         data: {
           textLang: textLang,
+          flowId: item?.referenceToFlowDataSet?.['@refObjectId'],
+          flowVersion: item?.referenceToFlowDataSet?.['@version'],
         },
       };
     });
@@ -597,8 +603,9 @@ const ToolbarEdit: FC<Props> = ({
           args: { x: inOrOut ? 0 : '100%', y: 65 },
           attrs: {
             text: {
-              text: genPortLabel(text ?? '', lang, nodeTemplate.width),
+              text: `${genPortLabel(text ?? '', lang, nodeTemplate.width)}`,
               title: text,
+              cursor: 'pointer',
             },
           },
           group:
@@ -607,8 +614,11 @@ const ToolbarEdit: FC<Props> = ({
               : 'groupInput',
           data: {
             textLang: refExchange?.referenceToFlowDataSet?.['common:shortDescription'],
+            flowId: refExchange?.referenceToFlowDataSet?.['@refObjectId'],
+            flowVersion: refExchange?.referenceToFlowDataSet?.['@version'],
           },
         };
+
         const name = data?.json?.processDataSet?.processInformation?.dataSetInformation?.name ?? {};
         const quantitativeReference = nodeCount === 0 && index === 0 ? '1' : '0';
         addNodes([
@@ -681,8 +691,9 @@ const ToolbarEdit: FC<Props> = ({
                 attrs: {
                   ...item?.attrs,
                   text: {
-                    text: genPortLabel(newTitle, lang, nodeWidth),
+                    text: `${genPortLabel(newTitle, lang, nodeWidth)}`,
                     title: newTitle,
+                    cursor: 'pointer',
                   },
                 },
                 data: {
@@ -786,7 +797,23 @@ const ToolbarEdit: FC<Props> = ({
         setThisVersion(result.data?.[0]?.version);
         saveCallback();
       } else {
-        message.error(result?.error?.message);
+        if (result?.error?.state_code === 100) {
+          message.error(
+            intl.formatMessage({
+              id: 'pages.review.openData',
+              defaultMessage: 'This data is open data, save failed',
+            }),
+          );
+        } else if (result?.error?.state_code === 20) {
+          message.error(
+            intl.formatMessage({
+              id: 'pages.review.underReview',
+              defaultMessage: 'Data is under review, save failed',
+            }),
+          );
+        } else {
+          message.error(result?.error?.message);
+        }
       }
       if (setLoadingData) setSpinning(false);
     } else if (thisAction === 'create') {
@@ -867,7 +894,6 @@ const ToolbarEdit: FC<Props> = ({
     const node = evt.node;
     const nodeWidth = node.getSize().width;
     const label = genProcessName(node?.data?.label, lang);
-
     const newItems = node?.getPorts()?.map((item: any) => {
       const itemText = getLangText(item?.data?.textLang, lang);
       return {
@@ -875,7 +901,8 @@ const ToolbarEdit: FC<Props> = ({
         attrs: {
           text: {
             ...item?.attrs?.text,
-            text: genPortLabel(itemText ?? '', lang, nodeWidth),
+            text: `${genPortLabel(itemText ?? '', lang, nodeWidth)}`,
+            cursor: 'pointer',
           },
         },
       };
@@ -894,6 +921,49 @@ const ToolbarEdit: FC<Props> = ({
         outputFlowTool,
       ],
     });
+  });
+
+  useGraphEvent('node:click', (evt) => {
+    const node = evt.node;
+    const event = evt.e;
+
+    if (node.isNode()) {
+      if (event && event.target) {
+        const target = event.target as HTMLElement;
+        const textContent = target.textContent;
+
+        if (textContent) {
+          const targetElement = event.target as HTMLElement;
+          const parentElement = targetElement.parentElement;
+          const grandParentElement = parentElement?.parentElement;
+
+          let clickedPortId = null;
+          if (grandParentElement) {
+            const firstChild = grandParentElement.firstElementChild;
+
+            if (firstChild && firstChild.tagName === 'circle') {
+              const portAttr = firstChild.getAttribute('port');
+
+              if (portAttr) {
+                clickedPortId = portAttr;
+              }
+            }
+          }
+
+          let matchedPort = null;
+          if (clickedPortId) {
+            const ports = node.getPorts();
+            matchedPort = ports.find((port: any) => port.id === clickedPortId);
+
+            if (matchedPort) {
+              setConnectableProcessesDrawerVisible(true);
+              setConnectableProcessesPortId(clickedPortId);
+              setConnectableProcessesFlowVersion(matchedPort?.data?.flowVersion);
+            }
+          }
+        }
+      }
+    }
   });
 
   useEffect(() => {
@@ -1130,6 +1200,7 @@ const ToolbarEdit: FC<Props> = ({
 
   const handleCheckData = async () => {
     setSpinning(true);
+    await saveData(false);
     const { problemNodes } = await editInfoRef.current?.handleCheckData(nodes, edges);
     setProblemNodes(problemNodes ?? []);
     setSpinning(false);
@@ -1209,7 +1280,11 @@ const ToolbarEdit: FC<Props> = ({
   };
 
   return (
-    <Space direction='vertical' size={'middle'}>
+    <Space
+      direction='vertical'
+      size={'middle'}
+      style={{ height: '70vh', overflowY: 'auto', paddingRight: 10, paddingLeft: 10 }}
+    >
       <ToolbarEditInfo
         ref={editInfoRef}
         action={thisAction}
@@ -1347,6 +1422,14 @@ const ToolbarEdit: FC<Props> = ({
         drawerVisible={ioPortSelectorDrawerVisible}
         onData={updateNodePorts}
         onDrawerVisible={setIoPortSelectorDrawerVisible}
+      />
+      <ConnectableProcesses
+        lang={lang}
+        drawerVisible={connectableProcessesDrawerVisible}
+        setDrawerVisible={setConnectableProcessesDrawerVisible}
+        portId={connectableProcessesPortId}
+        flowVersion={connectableProcessesFlowVersion}
+        onData={addProcessNodes}
       />
     </Space>
   );

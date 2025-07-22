@@ -157,14 +157,14 @@ export function genClassStr(
   const c = classification?.find((i) => i?.value === data?.[index]);
   if (c) {
     if (data.length > index + 1) {
-      return c?.label + ' / ' + genClassStr(data, index + 1, c?.children);
+      return c?.label + ' > ' + genClassStr(data, index + 1, c?.children);
     } else {
       return c?.label;
     }
   } else {
     if (data?.[index]) {
       if (data.length > index + 1) {
-        return data?.[index] + ' / ' + genClassStr(data, index + 1, []);
+        return data?.[index] + ' > ' + genClassStr(data, index + 1, []);
       } else {
         return data?.[index];
       }
@@ -279,7 +279,7 @@ export function classificationToString(classifications: any[]) {
     if (classifications && classifications.length > 0) {
       for (let i = 0; i < classifications.length; i++) {
         const filterList = classifications.find((c) => c['@level'] === i.toString());
-        classificationStr += filterList?.['#text'] + ' / ';
+        classificationStr += filterList?.['#text'] + ' > ';
       }
       classificationStr = classificationStr.slice(0, -3);
     } else {
@@ -557,8 +557,30 @@ export function getDataSource(pathname: string) {
 }
 
 export function getRuleVerification(schema: any, data: any) {
-  const result: any = { valid: true, errors: [] };
+  const result: {
+    valid: boolean;
+    errors: {
+      path: string;
+      message: string;
+      rule: string;
+    }[];
+  } = { valid: true, errors: [] };
   const requiredPaths: Array<{ path: string; rule: any }> = [];
+  const multilingualPaths: Array<{ path: string; rule: any }> = [];
+
+  const isMultilingualField = (schemaValue: any): boolean => {
+    const value = schemaValue?.value;
+
+    if (value && Array.isArray(value) && value.length > 0) {
+      return value[0] && typeof value[0] === 'object' && value[0]['@xml:lang'];
+    }
+
+    if (value && typeof value === 'object' && !Array.isArray(value)) {
+      return !!value['@xml:lang'];
+    }
+
+    return false;
+  };
 
   const collectRequiredPaths = (schemaObj: any, path: string = '') => {
     if (!schemaObj || typeof schemaObj !== 'object') return;
@@ -566,21 +588,39 @@ export function getRuleVerification(schema: any, data: any) {
     Object.keys(schemaObj).forEach((key) => {
       const currentPath = path ? `${path}.${key}` : key;
       const schemaValue = schemaObj[key];
+      if (
+        path.includes('modellingAndValidation.validation.review') ||
+        path.includes('modellingAndValidation.complianceDeclarations.compliance')
+      ) {
+        return;
+      }
 
-      if (schemaValue && schemaValue.rules) {
-        const rules = schemaValue.rules;
-        for (const rule of rules) {
-          if (rule.required) {
-            requiredPaths.push({
+      if (schemaValue?.rules) {
+        const requiredRule = schemaValue.rules.find((rule: any) => rule.required);
+
+        if (requiredRule) {
+          requiredPaths.push({
+            path: currentPath,
+            rule: requiredRule,
+          });
+
+          if (isMultilingualField(schemaValue)) {
+            multilingualPaths.push({
               path: currentPath,
-              rule: rule,
+              rule: {
+                messageKey: 'validator.lang.mustBeEnglish',
+                defaultMessage: 'English is a required language',
+              },
             });
-            break;
           }
         }
       }
 
-      if (schemaValue && typeof schemaValue === 'object' && !schemaValue.rules) {
+      if (Array.isArray(schemaValue)) {
+        if (schemaValue.length > 0) {
+          collectRequiredPaths(schemaValue[0], `${currentPath}.0`);
+        }
+      } else if (schemaValue && typeof schemaValue === 'object' && !schemaValue.rules) {
         collectRequiredPaths(schemaValue, currentPath);
       }
     });
@@ -616,13 +656,125 @@ export function getRuleVerification(schema: any, data: any) {
     return false;
   };
 
+  const hasEnglishEntry = (value: any) => {
+    if (!value) return false;
+
+    if (Array.isArray(value)) {
+      return value.some(
+        (item: any) =>
+          item &&
+          typeof item === 'object' &&
+          item['@xml:lang'] === 'en' &&
+          item['#text'] &&
+          item['#text'].trim() !== '',
+      );
+    }
+
+    if (
+      typeof value === 'object' &&
+      value['@xml:lang'] === 'en' &&
+      value['#text'] &&
+      value['#text'].trim() !== ''
+    ) {
+      return true;
+    }
+
+    return false;
+  };
+
   collectRequiredPaths(schema);
 
   requiredPaths.forEach(({ path, rule }) => {
+    if (path.includes('quantitativeReference')) {
+      return;
+    }
     let value = getValueByPath(data, path);
 
     if (value && typeof value === 'object' && value.value !== undefined) {
       value = value.value;
+    }
+
+    let shouldSkipValidation = false;
+    if (path.includes('.0.')) {
+      const pathParts = path.split('.');
+      const arrayIndex = pathParts.findIndex((part) => part === '0');
+      if (arrayIndex !== -1) {
+        const arrayPath = pathParts.slice(0, arrayIndex).join('.');
+        const remainingPath = pathParts.slice(arrayIndex + 1).join('.');
+
+        const arrayData = getValueByPath(data, arrayPath);
+
+        if (Array.isArray(arrayData) && arrayData.length > 0) {
+          let allValid = true;
+          for (let i = 0; i < arrayData.length; i++) {
+            const itemPath = `${arrayPath}.${i}.${remainingPath}`;
+            let itemValue = getValueByPath(data, itemPath);
+
+            if (itemValue && typeof itemValue === 'object' && itemValue.value !== undefined) {
+              itemValue = itemValue.value;
+            }
+
+            if (isEmpty(itemValue)) {
+              allValid = false;
+              result.valid = false;
+              result.errors.push({
+                path: itemPath,
+                message: rule.defaultMessage || rule.messageKey,
+                rule: 'required',
+              });
+            }
+          }
+
+          if (allValid) {
+            shouldSkipValidation = true;
+          }
+        }
+      }
+    }
+
+    if (path.startsWith('flowDataSet.flowProperties.flowProperty')) {
+      const flowPropertyPath = 'flowDataSet.flowProperties.flowProperty';
+      const flowPropertyArray = getValueByPath(data, flowPropertyPath);
+
+      if (Array.isArray(flowPropertyArray) && flowPropertyArray.length > 0) {
+        const remainingPath = path.substring(flowPropertyPath.length + 1);
+
+        let allValid = true;
+        for (let i = 0; i < flowPropertyArray.length; i++) {
+          const itemPath = `${flowPropertyPath}.${i}${remainingPath ? '.' + remainingPath : ''}`;
+          let itemValue = getValueByPath(data, itemPath);
+
+          if (itemValue && typeof itemValue === 'object' && itemValue.value !== undefined) {
+            itemValue = itemValue.value;
+          }
+
+          if (isEmpty(itemValue)) {
+            allValid = false;
+            result.valid = false;
+            result.errors.push({
+              path: itemPath,
+              message: rule.defaultMessage || rule.messageKey,
+              rule: 'required',
+            });
+          }
+        }
+
+        if (allValid) {
+          shouldSkipValidation = true;
+        }
+      } else if (
+        flowPropertyArray &&
+        typeof flowPropertyArray === 'object' &&
+        !Array.isArray(flowPropertyArray)
+      ) {
+        if (!isEmpty(value)) {
+          shouldSkipValidation = true;
+        }
+      }
+    }
+
+    if (shouldSkipValidation) {
+      return;
     }
 
     if (path.includes('common:class')) {
@@ -647,11 +799,7 @@ export function getRuleVerification(schema: any, data: any) {
       }
     }
 
-    if (
-      isEmpty(value) &&
-      !path.includes('modellingAndValidation.validation.review') &&
-      !path.includes('modellingAndValidation.complianceDeclarations.compliance')
-    ) {
+    if (isEmpty(value)) {
       result.valid = false;
       result.errors.push({
         path,
@@ -661,9 +809,26 @@ export function getRuleVerification(schema: any, data: any) {
     }
   });
 
+  multilingualPaths.forEach(({ path, rule }) => {
+    let value = getValueByPath(data, path);
+
+    if (value && typeof value === 'object' && value.value !== undefined) {
+      value = value.value;
+    }
+
+    if (!hasEnglishEntry(value)) {
+      result.valid = false;
+      result.errors.push({
+        path,
+        message: rule.defaultMessage,
+        rule: 'english_required',
+      });
+    }
+  });
+
   if (!result.valid) {
     console.log('getRuleVerificationFalse', result);
   }
 
-  return result.valid;
+  return result;
 }

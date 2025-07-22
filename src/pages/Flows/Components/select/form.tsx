@@ -8,7 +8,7 @@ import { getRefData } from '@/services/general/api';
 import { ProFormInstance } from '@ant-design/pro-components';
 import { Button, Card, Col, Divider, Form, Input, Row, Space, theme } from 'antd';
 import React, { FC, ReactNode, useEffect, useState } from 'react';
-import { FormattedMessage } from 'umi';
+import { FormattedMessage, useModel } from 'umi';
 import FlowsEdit from '../edit';
 import FlowsView from '../view';
 import FlowsSelectDrawer from './drawer';
@@ -43,13 +43,13 @@ const FlowsSelectForm: FC<Props> = ({
   const [refData, setRefData] = useState<any>(null);
   const [errRef, setErrRef] = useState<RefCheckType | null>(null);
   const refCheckContext = useRefCheckContext();
-
+  const { initialState } = useModel('@@initialState');
   const updateErrRefByDetail = (data: any) => {
     if (
       data?.ruleVerification === false &&
       data?.stateCode !== 100 &&
       data?.stateCode !== 200 &&
-      refCheckContext?.refCheckData?.length
+      rules?.length
     ) {
       setErrRef({
         id: data?.id,
@@ -57,6 +57,8 @@ const FlowsSelectForm: FC<Props> = ({
         ruleVerification: data?.ruleVerification,
         nonExistent: false,
       });
+    } else {
+      setErrRef(null);
     }
   };
   useEffect(() => {
@@ -66,20 +68,24 @@ const FlowsSelectForm: FC<Props> = ({
         setRefData({ ...result.data });
         updateErrRefByDetail(result?.data);
       });
-      if (refCheckContext?.refCheckData?.length) {
-        const ref = refCheckContext?.refCheckData?.find(
-          (item: any) => item.id === id && item.version === version,
-        );
-        if (ref) {
-          setErrRef(ref);
-        } else {
-          setErrRef(null);
-        }
-      } else {
+    }
+  }, [id, version]);
+  useEffect(() => {
+    if (refCheckContext?.refCheckData?.length) {
+      const ref = refCheckContext?.refCheckData?.find(
+        (item: any) =>
+          (item.id === id && item.version === version) ||
+          (item.id === refData?.id && item.version === refData?.version),
+      );
+      if (ref) {
+        setErrRef(ref);
+      } else if (refData && refData?.id !== errRef?.id) {
         setErrRef(null);
       }
+    } else {
+      setErrRef(null);
     }
-  }, [id, version, refCheckContext]);
+  }, [refCheckContext, refData]);
 
   const handletFlowsData = (rowId: string, rowVersion: string) => {
     getFlowDetail(rowId, rowVersion).then(async (result: any) => {
@@ -207,7 +213,7 @@ const FlowsSelectForm: FC<Props> = ({
             </Button>
           )}
           {id && <FlowsView lang={lang} id={id} version={version ?? ''} buttonType='text' />}
-          {id && dataUserId === sessionStorage.getItem('userId') && (
+          {id && dataUserId === initialState?.currentUser?.userid && (
             <FlowsEdit
               updateErrRef={(data: any) => setErrRef(data)}
               lang={lang}

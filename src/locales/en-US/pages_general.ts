@@ -31,6 +31,7 @@ export default {
   'pages.button.save': 'Save',
   'pages.button.check': 'Data check',
   'pages.button.check.success': 'Data check successfully!',
+  'pages.button.check.error': 'Data check failed, please check the data!',
   'pages.button.review': 'Sumit for review',
   'pages.button.select': 'Select',
   'pages.button.reselect': 'Reselect',
@@ -85,4 +86,8 @@ export default {
   'pages.table.filter.unreviewed': 'Unreviewed',
   'pages.table.filter.reviewing': 'Reviewing',
   'pages.table.filter.reviewed': 'Reviewed',
+
+  'pages.action.error': 'Action failed',
+  'pages.review.underReview': 'Data is under review, save failed',
+  'pages.review.openData': 'This data is open data, save failed',
 };

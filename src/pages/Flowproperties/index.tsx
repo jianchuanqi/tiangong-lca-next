@@ -18,6 +18,7 @@ import { getTeamById } from '@/services/teams/api';
 import { SearchProps } from 'antd/es/input/Search';
 import type { FC } from 'react';
 // import ReferenceUnit from '../Unitgroups/Components/Unit/reference';
+import { toSuperscript } from '@/components/AlignedNumber';
 import ExportData from '@/components/ExportData';
 import ImportData from '@/components/ImportData';
 import TableFilter from '@/components/TableFilter';
@@ -93,7 +94,7 @@ const TableList: FC = () => {
               placement='topLeft'
               title={getLangText(row.refUnitRes?.refUnitGeneralComment, lang)}
             >
-              {row.refUnitRes?.refUnitName}
+              {toSuperscript(row.refUnitRes?.refUnitName)}
             </Tooltip>
             )
           </span>,
@@ -296,7 +297,7 @@ const TableList: FC = () => {
               enterButton
             />
           </Col>
-          <Col flex='100px'>
+          <Col style={{ display: 'none' }} flex='100px'>
             <Checkbox
               onChange={(e) => {
                 setOpenAI(e.target.checked);
@@ -363,7 +364,14 @@ const TableList: FC = () => {
               keyWord,
               {},
               stateCode,
-            );
+            ).then((res) => {
+              return getUnitData('unitgroup', res?.data ?? []).then((refUnitGroupResp: any) => {
+                return {
+                  ...res,
+                  data: refUnitGroupResp ?? [],
+                };
+              });
+            });
           }
           return getFlowpropertyTableAll(params, sort, lang, dataSource, tid ?? '', stateCode).then(
             (res) => {
