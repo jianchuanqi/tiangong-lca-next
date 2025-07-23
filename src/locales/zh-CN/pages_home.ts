@@ -1,5 +1,5 @@
 export default {
-  'pages.name': '天工生命周期数据平台',
+  'pages.name': '天工可持续供应链',
   'pages.welcome': '全球最大的开放生命周期数据平台',
   'pages.card.title.1': '可追溯 & 可信赖',
   'pages.card.description.1': '先进的技术和严格的质量控制，确保数据来源清晰、建模过程透明可追溯，为用户提供可信赖的生命周期数据。',

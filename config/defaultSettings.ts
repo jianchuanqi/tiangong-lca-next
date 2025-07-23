@@ -13,7 +13,7 @@ const Settings: ProLayoutProps & {
   fixedHeader: false,
   fixSiderbar: true,
   colorWeak: false,
-  title: 'TianGong LCA Data Platform',
+  title: 'TianGong Sustainable Supply Chain',
   pwa: true,
   logo: '/logo.svg',
   iconfontUrl: '',

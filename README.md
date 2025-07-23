@@ -1,8 +1,8 @@
-# TianGong LCA Data Platform
+# TianGong Sustainable Supply Chain
 
 [English](https://github.com/linancn/tiangong-lca-next/blob/main/README.md) | [中文](https://github.com/linancn/tiangong-lca-next/blob/main/README_CN.md)
 
-**TianGong LCA Data Platform** is a **fully open-source** Life Cycle Assessment (LCA) data management platform, offering **free** cloud services as well as private deployment options. With TianGong, you can:
+**TianGong Sustainable Supply Chain** is a **fully open-source** Life Cycle Assessment (LCA) data management platform, offering **free** cloud services as well as private deployment options. With TianGong, you can:
 
 🌐 **Start Using Our Online Platform Right Away**  
 Begin your LCA journey now: <a href="https://lca.tiangong.earth" target="_blank">https://lca.tiangong.earth</a>

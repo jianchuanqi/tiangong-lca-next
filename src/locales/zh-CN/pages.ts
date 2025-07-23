@@ -52,7 +52,7 @@ export default {
   'pages.login.terms': '注册即代表您同意我们的 {termsOfService} 与 {privacyPolicy}',
   'pages.login.termsOfUse': '使用条款',
   'pages.login.privacyNotice': '隐私声明',
-  'pages.login.title': '天工生命周期数据平台',
+  'pages.login.title': '天工可持续供应链',
   'pages.login.subTitle': '全球最大的开放生命周期数据平台',
   'pages.welcome.alertMessage': '更快更强的重型组件，已经发布。',
   'pages.welcome.link': '欢迎使用',

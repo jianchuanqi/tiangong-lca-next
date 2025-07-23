@@ -5,7 +5,7 @@
   "description": "An out-of-box LCA Data solution",
   "homepage": "./",
   "license": "MIT",
-  "author": "TianGong LCA <linanenv@gmail.com> (https://lca.tiangong.earth)",
+  "author": "TianGong Sustainable Supply Chain <linanenv@gmail.com> (https://lca.tiangong.earth)",
   "main": "dist-electron/main.js",
   "scripts": {
     "analyze": "cross-env ANALYZE=1 max build",

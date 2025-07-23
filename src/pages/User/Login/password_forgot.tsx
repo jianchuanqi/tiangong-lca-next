@@ -95,9 +95,9 @@ const PasswordForgot: React.FC = () => {
                 <LoginForm
                   layout='vertical'
                   logo={isDarkMode ? '/logo_dark.svg' : Settings.logo}
-                  title={<FormattedMessage id='pages.login.title' defaultMessage='TianGong LCA' />}
+                  title={<FormattedMessage id='pages.login.title' defaultMessage='TianGong Sustainable Supply Chain' />}
                   subTitle={
-                    <FormattedMessage id='pages.login.subTitle' defaultMessage='TianGong LCA' />
+                    <FormattedMessage id='pages.login.subTitle' defaultMessage='TianGong Sustainable Supply Chain' />
                   }
                   initialValues={initData}
                   onFinish={async (values) => {
