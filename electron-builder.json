@@ -1,6 +1,6 @@
 {
   "appId": "earth.tiangong.lca",
-  "productName": "TianGong LCA",
+  "productName": "TianGong Sustainable Supply Chain",
   "copyright": "Nan LI",
   "directories": {
     "app": ".",
@@ -46,7 +46,7 @@
     "installerHeaderIcon": "./icons/icon.ico",
     "createDesktopShortcut": true,
     "createStartMenuShortcut": true,
-    "shortcutName": "TianGong LCA"
+    "shortcutName": "TianGong Sustainable Supply Chain"
   },
   "linux": {
     "target": ["deb", "rpm"],

@@ -155,7 +155,7 @@ const ModelToolbarAdd: FC<Props> = ({ buttonType, lang, onData }) => {
       key: 'tg',
       tab: <FormattedMessage id='pages.tab.title.tgdata' defaultMessage='TianGong Data' />,
     },
-    { key: 'my', tab: <FormattedMessage id='pages.tab.title.mydata' defaultMessage='My Data' /> },
+    { key: 'my', tab: <FormattedMessage id='pages.tab.title.mydata' defaultMessage='Personal Domain' /> },
   ];
 
   const databaseList: Record<string, React.ReactNode> = {

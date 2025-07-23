@@ -10,8 +10,8 @@ const Footer: React.FC = () => {
       }}
       links={[
         {
-          key: 'TianGong LCA',
-          title: 'TianGong LCA',
+          key: 'TianGong Sustainable Supply Chain',
+          title: 'TianGong Sustainable Supply Chain',
           href: 'https://www.tiangong.earth',
           blankTarget: true,
         },

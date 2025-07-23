@@ -214,7 +214,7 @@ export const layout: RunTimeLayoutConfig = ({ initialState, setInitialState }) =
       );
     },
     ...initialState?.settings,
-    title: formatMessage({ id: 'pages.name', defaultMessage: 'TianGong LCA Data Platform' }),
+    title: formatMessage({ id: 'pages.name', defaultMessage: 'TianGong Sustainable Supply Chain' }),
   };
 };
 

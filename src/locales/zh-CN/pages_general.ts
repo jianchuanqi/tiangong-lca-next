@@ -62,9 +62,9 @@ export default {
   'pages.button.item.add': '添加',
   'pages.button.item.label': '项目',
 
-  'pages.tab.title.mydata': '我的数据',
-  'pages.tab.title.tedata': '团队数据',
-  'pages.tab.title.tgdata': '天工数据',
+  'pages.tab.title.mydata': '个人域',
+  'pages.tab.title.tedata': '企业域',
+  'pages.tab.title.tgdata': '公共域',
 
   'pages.search.openAI': '智能推荐',
   'pages.search.keyWord': '全文检索：请输入一个或多个关键词。',
